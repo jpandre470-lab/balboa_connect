@@ -613,3 +613,212 @@ class spaclient:
         self.m8_cycle_time = byte_array[24] * 30 if byte_array[24] in [1, 2, 3, 4] else 0
         self.flip_screen = byte_array[23]
         self.socket_is_connected = True
+
+    def send_fault_log_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x28, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_configuration_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x2e, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_filter_cycles_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x23, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_gfci_test_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x2b, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_information_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x24, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_preferences_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x26, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_module_identification_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x94, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_additional_information_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x25, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def _send_message(self, payload):
+        if self.socket_s is None:
+            return
+        message = bytearray([0x7E, len(payload), 0x00]) + payload + bytearray([0x7E])
+        try:
+            self.socket_s.sendall(message)
+        except Exception as e:
+            _LOGGER.warning("Error sending message: %s", e)
+
+    def print_variables(self):
+        _LOGGER.debug("=== Spa Client Variables ===")
+        _LOGGER.debug(f"Hold Mode: {self.hold_mode}")
+        _LOGGER.debug(f"Priming: {self.priming}")
+        _LOGGER.debug(f"Current Temp: {self.current_temp}")
+        _LOGGER.debug(f"Hour: {self.hour}")
+        _LOGGER.debug(f"Minute: {self.minute}")
+        _LOGGER.debug(f"Heat Mode: {self.heat_mode}")
+        _LOGGER.debug(f"Temp Scale: {self.temp_scale}")
+        _LOGGER.debug(f"Time Scale: {self.time_scale}")
+        _LOGGER.debug(f"Heating: {self.heating}")
+        _LOGGER.debug(f"Temp Range: {self.temp_range}")
+        for i in range(1, 7):
+            _LOGGER.debug(f"Pump {i}: {getattr(self, f'pump{i}')}")
+        _LOGGER.debug(f"Circ Pump: {self.circ_pump}")
+        _LOGGER.debug(f"Blower: {self.blower}")
+        _LOGGER.debug(f"Light 1: {self.light1}")
+        _LOGGER.debug(f"Light 2: {self.light2}")
+        _LOGGER.debug(f"Mister: {self.mister}")
+        _LOGGER.debug(f"Aux 1: {self.aux1}")
+        _LOGGER.debug(f"Aux 2: {self.aux2}")
+        _LOGGER.debug(f"Set Temp: {self.set_temp}")
+        _LOGGER.debug(f"Standby Mode: {self.standby_mode}")
+        _LOGGER.debug(f"Spa State: {self.spa_state}")
+        _LOGGER.debug(f"Sensor A Temp: {self.sensor_a_temp}")
+        _LOGGER.debug(f"Sensor B Temp: {self.sensor_b_temp}")
+        _LOGGER.debug(f"Panel Locked: {self.panel_locked}")
+        _LOGGER.debug(f"Settings Locked: {self.settings_locked}")
+        _LOGGER.debug(f"WiFi State: {self.wifi_state}")
+        _LOGGER.debug(f"Notification: {self.notification}")
+        _LOGGER.debug(f"Notification Type: {self.notification_type}")
+        _LOGGER.debug(f"Filter Mode: {self.filter_mode}")
+        _LOGGER.debug(f"M8 Cycle Time: {self.m8_cycle_time}")
+        _LOGGER.debug(f"Flip Screen: {self.flip_screen}")
+
+    # Getter methods
+    def get_hold_mode(self):
+        return self.hold_mode
+
+    def get_priming(self):
+        return self.priming
+
+    def get_current_temp(self):
+        return self.current_temp
+
+    def get_hour(self):
+        return self.hour
+
+    def get_minute(self):
+        return self.minute
+
+    def get_heat_mode(self):
+        return self.heat_mode
+
+    def get_hold_mode_remain_time(self):
+        return self.hold_mode_remain_time
+
+    def get_temp_scale(self):
+        return self.temp_scale
+
+    def get_filter_mode(self, filter_num):
+        if filter_num == 1:
+            return self.filter_mode == 1 or self.filter_mode == 3
+        elif filter_num == 2:
+            return self.filter_mode == 2 or self.filter_mode == 3
+        return False
+
+    def get_filter_begins(self, filter_num):
+        if filter_num == 1:
+            return f"{self.filter_1_begins_hour:02d}:{self.filter_1_begins_minute:02d}"
+        elif filter_num == 2:
+            return f"{self.filter_2_begins_hour:02d}:{self.filter_2_begins_minute:02d}"
+        return "N/A"
+
+    def get_filter_runs(self, filter_num):
+        if filter_num == 1:
+            return f"{self.filter_1_runs_hour:02d}:{self.filter_1_runs_minute:02d}"
+        elif filter_num == 2:
+            return f"{self.filter_2_runs_hour:02d}:{self.filter_2_runs_minute:02d}"
+        return "N/A"
+
+    def get_filter_ends(self, filter_num):
+        if filter_num == 1:
+            end_hour = (self.filter_1_begins_hour + self.filter_1_runs_hour) % 24
+            end_minute = (self.filter_1_begins_minute + self.filter_1_runs_minute) % 60
+            return f"{end_hour:02d}:{end_minute:02d}"
+        elif filter_num == 2:
+            end_hour = (self.filter_2_begins_hour + self.filter_2_runs_hour) % 24
+            end_minute = (self.filter_2_begins_minute + self.filter_2_runs_minute) % 60
+            return f"{end_hour:02d}:{end_minute:02d}"
+        return "N/A"
+
+    def get_time_scale(self):
+        return self.time_scale
+
+    def get_heating(self):
+        return self.heating
+
+    def get_heating_state(self):
+        if self.heating == 0:
+            return "Off"
+        elif self.heating == 1:
+            return "Heating"
+        elif self.heating == 2:
+            return "Heat Waiting"
+        return "Unknown"
+
+    def get_temp_range(self):
+        return self.temp_range
+
+    def get_pump(self, pump_num):
+        return getattr(self, f'pump{pump_num}')
+
+    def get_pump_list(self):
+        return self.cfg_pump_array
+
+    def get_circ_pump(self):
+        return self.circ_pump
+
+    def get_circ_pump_list(self):
+        return self.cfg_circ_pump_array
+
+    def get_blower(self):
+        return self.blower
+
+    def get_blower_list(self):
+        return self.cfg_blower_array
+
+    def get_light(self, light_num):
+        return getattr(self, f'light{light_num}')
+
+    def get_light_list(self):
+        return self.cfg_light_array
+
+    def get_mister(self):
+        return self.mister
+
+    def get_mister_list(self):
+        return self.cfg_mister_array
+
+    def get_aux(self, aux_num):
+        return getattr(self, f'aux{aux_num}')
+
+    def get_aux_list(self):
+        return self.cfg_aux_array
+
+    def get_standby_mode(self):
+        return self.standby_mode
+
+    def get_spa_state(self):
+        if self.spa_state == 0x00:
+            return "Running"
+        elif self.spa_state == 0x01:
+            return "Initializing"
+        elif self.spa_state == 0x05:
+            return "Hold Mode"
+        elif self.spa_state == 0x17:
+            return "Test Mode"
+        return "Unknown"
