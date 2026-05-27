@@ -480,3 +480,96 @@ class spaclient:
         if self._executor:
             self._executor.shutdown(wait=False)
         _LOGGER.info("Spa client stopped")
+
+    def parse_additional_information_response(self, byte_array):
+        """ Parse additional information response."""
+        self.add_info_low_range_min = byte_array[2]
+        self.add_info_low_range_max = byte_array[3]
+        self.add_info_high_range_min = byte_array[4]
+        self.add_info_high_range_max = byte_array[5]
+        self.add_info_nb_of_pumps = (
+            (byte_array[7] & 0x01) + (byte_array[7] >> 1 & 0x01) +
+            (byte_array[7] >> 2 & 0x01) + (byte_array[7] >> 3 & 0x01) +
+            (byte_array[7] >> 4 & 0x01) + (byte_array[7] >> 5 & 0x01))
+        self.additional_information_loaded = True
+
+    def parse_configuration_response(self, byte_array):
+        """Parse a panel config response."""
+        self.cfg_pump_array[0] = int((byte_array[0] & 0x03))
+        self.cfg_pump_array[1] = int((byte_array[0] & 0x0c) >> 2)
+        self.cfg_pump_array[2] = int((byte_array[0] & 0x30) >> 4)
+        self.cfg_pump_array[3] = int((byte_array[0] & 0xc0) >> 6)
+        self.cfg_pump_array[4] = int((byte_array[1] & 0x03))
+        self.cfg_pump_array[5] = int((byte_array[1] & 0xc0) >> 6)
+        self.cfg_light_array[0] = int((byte_array[2] & 0x03) != 0)
+        self.cfg_light_array[1] = int((byte_array[2] & 0xc0) != 0)
+        self.cfg_circ_pump_array[0] = int((byte_array[3] & 0x80) != 0)
+        self.cfg_blower_array[0] = int((byte_array[3] & 0x03) != 0)
+        self.cfg_mister_array[0] = int((byte_array[4] & 0x30) != 0)
+        self.cfg_aux_array[0] = int((byte_array[4] & 0x01) != 0)
+        self.cfg_aux_array[1] = int((byte_array[4] & 0x02) != 0)
+        self.configuration_loaded = True
+
+    def parse_fault_log_response(self, byte_array):
+        """Parse fault log response."""
+        self.fault_log_total_entries = byte_array[0]
+        self.fault_log_entry_nb = byte_array[1]
+        self.fault_log_msg_code = byte_array[2]
+        self.fault_log_days_ago = byte_array[3]
+        self.fault_log_msg_hour = byte_array[4]
+        self.fault_log_msg_minute = byte_array[5]
+        self.fault_log_todo = byte_array[6]
+        self.fault_log_set_temp = byte_array[7]
+        self.fault_log_sensor_a_temp = byte_array[8]
+        self.fault_log_sensor_b_temp = byte_array[9]
+        self.fault_log_loaded = True
+
+    def parse_filter_cycles_response(self, byte_array):
+        """Parse filter cycles response."""
+        self.filter_1_begins_hour = byte_array[0]
+        self.filter_1_begins_minute = byte_array[1]
+        self.filter_1_runs_hour = byte_array[2]
+        self.filter_1_runs_minute = byte_array[3]
+        self.filter_2_enabled = byte_array[4] >> 7
+        self.filter_2_begins_hour = byte_array[4] ^ (self.filter_2_enabled << 7)
+        self.filter_2_begins_minute = byte_array[5]
+        self.filter_2_runs_hour = byte_array[6]
+        self.filter_2_runs_minute = byte_array[7]
+        self.filter_cycles_loaded = True
+
+    def parse_gfci_test_response(self, byte_array):
+        """Parse GFCI test response."""
+        self.gfci_test_result = byte_array[0]
+        self.gfci_test_loaded = True
+
+    def parse_information_response(self, byte_array):
+        """Parse information response."""
+        model = [byte_array[4], byte_array[5], byte_array[6], byte_array[7],
+                 byte_array[8], byte_array[9], byte_array[10], byte_array[11]]
+        self.info_model_name = "".join(map(chr, model)).strip()
+        self.info_sw_vers = f"{byte_array[2]}.{byte_array[3]}"
+        self.info_setup = byte_array[12]
+        self.info_ssid = f"M{byte_array[0]}_{byte_array[1]} V{self.info_sw_vers}"
+        self.info_cfg_sig = f"{byte_array[13]:x}{byte_array[14]:x}{byte_array[15]:x}{byte_array[16]:x}"
+        self.info_heater_voltage = 240 if byte_array[17] == 0x01 else "Unknown"
+        self.info_heater_type = "Standard" if byte_array[18] == 0x0A else "Unknown"
+        self.info_dip_switch = f"{byte_array[19]:08b}{byte_array[20]:08b}"
+        self.information_loaded = True
+
+    def parse_module_identification_response(self, byte_array):
+        """Parse module identification response."""
+        self.id_macaddr = f"{byte_array[3]:02x}:{byte_array[4]:02x}:{byte_array[5]:02x}:"
+                       f"{byte_array[6]:02x}:{byte_array[7]:02x}:{byte_array[8]:02x}"
+        self.id_mac_oui = f"{byte_array[17]:02x}:{byte_array[18]:02x}:{byte_array[19]:02x}"
+        self.id_mac_nic = f"{byte_array[22]:02x}:{byte_array[23]:02x}:{byte_array[24]:02x}"
+        self.module_identification_loaded = True
+
+    def parse_preferences_response(self, byte_array):
+        """Parse preferences response."""
+        self.pref_reminder = ("Off", "On")[byte_array[1] & 0x01]
+        self.pref_temp_scale = ("Fahrenheit", "Celsius")[byte_array[3] & 0x01]
+        self.pref_clock_mode = ("12 Hr", "24 Hr")[byte_array[4] & 0x01]
+        self.pref_clean_up_cycle = byte_array[5]
+        self.pref_dolphin_address = byte_array[6]
+        self.pref_m8_ai = ("Off", "On")[byte_array[8] & 0x01]
+        self.preferences_loaded = True
