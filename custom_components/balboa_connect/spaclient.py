@@ -573,3 +573,43 @@ class spaclient:
         self.pref_dolphin_address = byte_array[6]
         self.pref_m8_ai = ("Off", "On")[byte_array[8] & 0x01]
         self.preferences_loaded = True
+
+    def parse_status_update(self, byte_array):
+        """ Parse a status update from the spa."""
+        self.hold_mode = 1 if byte_array[0] == 0x05 else 0
+        self.priming = 1 if byte_array[1] == 0x01 else 0
+        self.current_temp = byte_array[2] if (byte_array[2] != 255) else None
+        self.hour = byte_array[3]
+        self.minute = byte_array[4]
+        self.heat_mode = ("Ready", "Rest", "Ready in Rest")[byte_array[5] & 0x03]
+        self.reminder_type = byte_array[6]
+        self.sensor_a_temp = byte_array[7] if (byte_array[7] != 255) else None
+        self.sensor_b_temp = byte_array[8] if (byte_array[8] != 255) else None
+        self.temp_scale = ("Fahrenheit", "Celsius")[byte_array[9] & 0x01]
+        self.time_scale = ("12 Hr", "24 Hr")[byte_array[9] >> 1 & 0x01]
+        self.filter_mode = byte_array[9] >> 2 & 0x03
+        self.heating = byte_array[10] >> 4 & 0x03
+        self.temp_range = ("Low", "High")[byte_array[10] >> 2 & 0x01]
+        self.pump1 = ("Off", "Low", "High")[byte_array[11] & 0x03]
+        self.pump2 = ("Off", "Low", "High")[(byte_array[11] >> 2) & 0x03]
+        self.pump3 = ("Off", "Low", "High")[(byte_array[11] >> 4) & 0x03]
+        self.pump4 = ("Off", "Low", "High")[(byte_array[11] >> 6) & 0x03]
+        self.pump5 = ("Off", "Low", "High")[byte_array[12] & 0x03]
+        self.pump6 = ("Off", "Low", "High")[(byte_array[12] >> 6) & 0x03]
+        self.circ_pump = (byte_array[13] & 0x02) != 0
+        self.blower = ("Off", "On")[(byte_array[13] & 0x0C) != 0]
+        self.light1 = (byte_array[14] & 0x03) == 0x03
+        self.light2 = (byte_array[14] & 0xC0) == 0xC0
+        self.mister = ("Off", "On")[byte_array[15] & 0x01]
+        self.aux1 = ("Off", "On")[(byte_array[15] & 0x08) != 0]
+        self.aux2 = ("Off", "On")[(byte_array[15] & 0x10) != 0]
+        self.set_temp = byte_array[19]
+        self.standby_mode = 1 if byte_array[22] == 0x40 else 0
+        self.spa_state = byte_array[22]
+        self.notification = 1 if (byte_array[17] & 0x20) else 0
+        self.notification_type = byte_array[18]
+        self.cleanup_cycle_active = 1 if (byte_array[16] & 0x04) else 0
+        self.sensor_ab_temps = 1 if (byte_array[18] & 0x02) else 0
+        self.m8_cycle_time = byte_array[24] * 30 if byte_array[24] in [1, 2, 3, 4] else 0
+        self.flip_screen = byte_array[23]
+        self.socket_is_connected = True
