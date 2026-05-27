@@ -568,3 +568,471 @@ class spaclient:
         self.pref_m8_ai = ("Off", "On")[byte_array[8] & 0x01]
 
         self.preferences_loaded = True
+
+    def parse_status_update(self, byte_array):
+        self.hold_mode = 1 if byte_array[0] == 0x05 else 0
+        self.priming = 1 if byte_array[1] == 0x01 else 0
+        self.current_temp = byte_array[2] if (byte_array[2] != 255) else None
+        self.hour = byte_array[3]
+        self.minute = byte_array[4]
+        self.heat_mode = ("Ready", "Rest", "Ready in Rest")[byte_array[5] & 0x03]
+        self.reminder_type = byte_array[6]
+        self.sensor_a_temp = byte_array[7] if (byte_array[7] != 255) else None
+        self.sensor_b_temp = byte_array[8] if (byte_array[8] != 255) else None
+        self.temp_scale = ("Fahrenheit", "Celsius")[byte_array[9] & 0x01]
+        self.time_scale = ("12 Hr", "24 Hr")[byte_array[9] >> 1 & 0x01]
+        self.filter_mode = byte_array[9] >> 2 & 0x03
+        self.heating = byte_array[10] >> 4 & 0x03
+        self.temp_range = ("Low", "High")[byte_array[10] >> 2 & 0x01]
+        self.pump1 = ("Off", "Low", "High")[byte_array[11] & 0x03]
+        self.pump2 = ("Off", "Low", "High")[(byte_array[11] >> 2) & 0x03]
+        self.pump3 = ("Off", "Low", "High")[(byte_array[11] >> 4) & 0x03]
+        self.pump4 = ("Off", "Low", "High")[(byte_array[11] >> 6) & 0x03]
+        self.pump5 = ("Off", "Low", "High")[byte_array[12] & 0x03]
+        self.pump6 = ("Off", "Low", "High")[(byte_array[12] >> 6) & 0x03]
+        self.circ_pump = (byte_array[13] & 0x02) != 0
+        self.blower = ("Off", "On")[(byte_array[13] & 0x0C) != 0]
+        self.light1 = (byte_array[14] & 0x03) == 0x03
+        self.light2 = (byte_array[14] & 0xC0) == 0xC0
+        self.mister = ("Off", "On")[byte_array[15] & 0x01]
+        self.aux1 = ("Off", "On")[(byte_array[15] & 0x08) != 0]
+        self.aux2 = ("Off", "On")[(byte_array[15] & 0x10) != 0]
+        self.set_temp = byte_array[19]
+        self.standby_mode = 1 if byte_array[22] == 0x40 else 0
+        self.spa_state = byte_array[22]
+        self.notification = 1 if (byte_array[17] & 0x20) else 0
+        self.notification_type = byte_array[18]
+        self.cleanup_cycle_active = 1 if (byte_array[16] & 0x04) else 0
+        self.sensor_ab_temps = 1 if (byte_array[18] & 0x02) else 0
+        self.m8_cycle_time = byte_array[24] * 30 if byte_array[24] in [1, 2, 3, 4] else 0
+        self.flip_screen = byte_array[23]
+
+        self.socket_is_connected = True
+
+    def send_fault_log_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x28, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_configuration_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x2e, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_filter_cycles_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x23, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_gfci_test_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x2b, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_information_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x24, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_preferences_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x26, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_module_identification_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x94, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def send_additional_information_request(self):
+        payload = bytearray([0x0a, 0xbf, 0x25, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def _send_message(self, payload):
+        if self.socket_s is None:
+            return
+        message = bytearray([0x7E, len(payload), 0x00]) + payload + bytearray([0x7E])
+        try:
+            self.socket_s.sendall(message)
+        except Exception as e:
+            _LOGGER.warning("Error sending message: %s", e)
+
+    def print_variables(self):
+        _LOGGER.debug("=== Spa Client Variables ===")
+        _LOGGER.debug(f"Hold Mode: {self.hold_mode}")
+        _LOGGER.debug(f"Priming: {self.priming}")
+        _LOGGER.debug(f"Current Temp: {self.current_temp}")
+        _LOGGER.debug(f"Hour: {self.hour}")
+        _LOGGER.debug(f"Minute: {self.minute}")
+        _LOGGER.debug(f"Heat Mode: {self.heat_mode}")
+        _LOGGER.debug(f"Temp Scale: {self.temp_scale}")
+        _LOGGER.debug(f"Time Scale: {self.time_scale}")
+        _LOGGER.debug(f"Heating: {self.heating}")
+        _LOGGER.debug(f"Temp Range: {self.temp_range}")
+        for i in range(1, 7):
+            _LOGGER.debug(f"Pump {i}: {getattr(self, f'pump{i}')}")
+        _LOGGER.debug(f"Circ Pump: {self.circ_pump}")
+        _LOGGER.debug(f"Blower: {self.blower}")
+        _LOGGER.debug(f"Light 1: {self.light1}")
+        _LOGGER.debug(f"Light 2: {self.light2}")
+        _LOGGER.debug(f"Mister: {self.mister}")
+        _LOGGER.debug(f"Aux 1: {self.aux1}")
+        _LOGGER.debug(f"Aux 2: {self.aux2}")
+        _LOGGER.debug(f"Set Temp: {self.set_temp}")
+        _LOGGER.debug(f"Standby Mode: {self.standby_mode}")
+        _LOGGER.debug(f"Spa State: {self.spa_state}")
+        _LOGGER.debug(f"Sensor A Temp: {self.sensor_a_temp}")
+        _LOGGER.debug(f"Sensor B Temp: {self.sensor_b_temp}")
+        _LOGGER.debug(f"Panel Locked: {self.panel_locked}")
+        _LOGGER.debug(f"Settings Locked: {self.settings_locked}")
+        _LOGGER.debug(f"WiFi State: {self.wifi_state}")
+        _LOGGER.debug(f"Notification: {self.notification}")
+        _LOGGER.debug(f"Notification Type: {self.notification_type}")
+        _LOGGER.debug(f"Filter Mode: {self.filter_mode}")
+        _LOGGER.debug(f"M8 Cycle Time: {self.m8_cycle_time}")
+        _LOGGER.debug(f"Flip Screen: {self.flip_screen}")
+
+    # Getter methods for all variables
+    def get_hold_mode(self):
+        return self.hold_mode
+
+    def get_priming(self):
+        return self.priming
+
+    def get_current_temp(self):
+        return self.current_temp
+
+    def get_hour(self):
+        return self.hour
+
+    def get_minute(self):
+        return self.minute
+
+    def get_heat_mode(self):
+        return self.heat_mode
+
+    def get_hold_mode_remain_time(self):
+        return self.hold_mode_remain_time
+
+    def get_temp_scale(self):
+        return self.temp_scale
+
+    def get_filter_mode(self, filter_num):
+        if filter_num == 1:
+            return self.filter_mode == 1 or self.filter_mode == 3
+        elif filter_num == 2:
+            return self.filter_mode == 2 or self.filter_mode == 3
+        return False
+
+    def get_filter_begins(self, filter_num):
+        if filter_num == 1:
+            return f"{self.filter_1_begins_hour:02d}:{self.filter_1_begins_minute:02d}"
+        elif filter_num == 2:
+            return f"{self.filter_2_begins_hour:02d}:{self.filter_2_begins_minute:02d}"
+        return "N/A"
+
+    def get_filter_runs(self, filter_num):
+        if filter_num == 1:
+            return f"{self.filter_1_runs_hour:02d}:{self.filter_1_runs_minute:02d}"
+        elif filter_num == 2:
+            return f"{self.filter_2_runs_hour:02d}:{self.filter_2_runs_minute:02d}"
+        return "N/A"
+
+    def get_filter_ends(self, filter_num):
+        if filter_num == 1:
+            end_hour = (self.filter_1_begins_hour + self.filter_1_runs_hour) % 24
+            end_minute = (self.filter_1_begins_minute + self.filter_1_runs_minute) % 60
+            return f"{end_hour:02d}:{end_minute:02d}"
+        elif filter_num == 2:
+            end_hour = (self.filter_2_begins_hour + self.filter_2_runs_hour) % 24
+            end_minute = (self.filter_2_begins_minute + self.filter_2_runs_minute) % 60
+            return f"{end_hour:02d}:{end_minute:02d}"
+        return "N/A"
+
+    def get_time_scale(self):
+        return self.time_scale
+
+    def get_heating(self):
+        return self.heating
+
+    def get_heating_state(self):
+        if self.heating == 0:
+            return "Off"
+        elif self.heating == 1:
+            return "Heating"
+        elif self.heating == 2:
+            return "Heat Waiting"
+        return "Unknown"
+
+    def get_temp_range(self):
+        return self.temp_range
+
+    def get_pump(self, pump_num):
+        return getattr(self, f'pump{pump_num}')
+
+    def get_pump_list(self):
+        return self.cfg_pump_array
+
+    def get_circ_pump(self):
+        return self.circ_pump
+
+    def get_circ_pump_list(self):
+        return self.cfg_circ_pump_array
+
+    def get_blower(self):
+        return self.blower
+
+    def get_blower_list(self):
+        return self.cfg_blower_array
+
+    def get_light(self, light_num):
+        return getattr(self, f'light{light_num}')
+
+    def get_light_list(self):
+        return self.cfg_light_array
+
+    def get_mister(self):
+        return self.mister
+
+    def get_mister_list(self):
+        return self.cfg_mister_array
+
+    def get_aux(self, aux_num):
+        return getattr(self, f'aux{aux_num}')
+
+    def get_aux_list(self):
+        return self.cfg_aux_array
+
+    def get_standby_mode(self):
+        return self.standby_mode
+
+    def get_spa_state(self):
+        if self.spa_state == 0x00:
+            return "Running"
+        elif self.spa_state == 0x01:
+            return "Initializing"
+        elif self.spa_state == 0x05:
+            return "Hold Mode"
+        elif self.spa_state == 0x17:
+            return "Test Mode"
+        return "Unknown"
+
+    def get_reminder_type(self):
+        return self.reminder_type
+
+    def get_reminder_type_text(self):
+        if self.reminder_type == 0x00:
+            return "None"
+        elif self.reminder_type == 0x04:
+            return "Clean Filter"
+        elif self.reminder_type == 0x0A:
+            return "Check pH"
+        elif self.reminder_type == 0x09:
+            return "Check Sanitizer"
+        elif self.reminder_type == 0x1E:
+            return "Fault"
+        return "Unknown"
+
+    def get_sensor_a_temp(self):
+        return self.sensor_a_temp
+
+    def get_sensor_b_temp(self):
+        return self.sensor_b_temp
+
+    def get_panel_locked(self):
+        return self.panel_locked
+
+    def get_settings_locked(self):
+        return self.settings_locked
+
+    def get_wifi_state(self):
+        return self.wifi_state
+
+    def get_wifi_state_text(self):
+        if self.wifi_state == 0:
+            return "Connected"
+        elif self.wifi_state == 1:
+            return "Connecting"
+        return "Not Connected"
+
+    def get_notification(self):
+        return self.notification
+
+    def get_notification_type(self):
+        return self.notification_type
+
+    def get_cleanup_cycle_active(self):
+        return self.cleanup_cycle_active
+
+    def get_sensor_ab_temps(self):
+        return self.sensor_ab_temps
+
+    def get_m8_cycle_time(self):
+        return self.m8_cycle_time
+
+    def get_flip_screen(self):
+        return self.flip_screen
+
+    def get_gateway_status(self):
+        return self.socket_is_connected
+
+    def get_macaddr(self):
+        return self.id_macaddr
+
+    def get_model_name(self):
+        return self.info_model_name
+
+    def get_ssid(self):
+        return self.info_ssid
+
+    def get_info_heater_voltage(self):
+        return self.info_heater_voltage
+
+    def get_info_heater_type(self):
+        return self.info_heater_type
+
+    def get_info_cfg_sig(self):
+        return self.info_cfg_sig
+
+    def get_fault_log_msg_code(self):
+        return self.fault_log_msg_code
+
+    def get_filter2_enabled(self):
+        return self.filter_2_enabled
+
+    # Setter methods for commands
+    async def set_temperature(self, temp):
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x00, temp, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_pump(self, pump_num, state):
+        pump_states = {"Off": 0x00, "Low": 0x01, "High": 0x02}
+        state_value = pump_states.get(state, 0x00)
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, pump_num - 1, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_light(self, light_num, state):
+        state_value = 0x01 if state else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x06 + light_num - 1, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_blower(self, state):
+        state_value = 0x01 if state == "On" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x08, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_mister(self, state):
+        state_value = 0x01 if state == "On" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x09, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_aux(self, aux_num, state):
+        state_value = 0x01 if state == "On" else 0x00
+        aux_pos = 0x0A if aux_num == 1 else 0x0B
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, aux_pos, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_heat_mode(self, mode):
+        mode_value = 0x01 if mode == "Ready" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x01, mode_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_standby_mode(self):
+        payload = bytearray([0x0a, 0xbf, 0x1d, 0x00, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_temp_range(self, range_value):
+        range_map = {"Low": 0x00, "High": 0x01}
+        range_value = range_map.get(range_value, 0x00)
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x04, range_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_temperature_scale(self, scale):
+        scale_value = 0x01 if scale == "Celsius" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x03, scale_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_clock_mode(self, mode):
+        mode_value = 0x01 if mode == "24 Hr" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x02, mode_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_cleanup_cycle(self, value):
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x05, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_reminders(self, enabled):
+        value = 0x01 if enabled else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x01, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_m8_ai(self, enabled):
+        value = 0x01 if enabled else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x08, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_panel_lock(self, locked):
+        value = 0x01 if locked else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x2d, 0x01, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_settings_lock(self, locked):
+        value = 0x01 if locked else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x2d, 0x02, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_hold_mode(self, value):
+        payload = bytearray([0x0a, 0xbf, 0x1d, 0x00, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_filter2_enabled(self, value):
+        self.filter_2_enabled = value
+
+    async def set_current_time(self):
+        from homeassistant.util.dt import now
+        current_time = now()
+        hour = current_time.hour
+        minute = current_time.minute
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x04, hour, minute, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_filter_cycle_begins_time(self, filter_num, time_value):
+        if filter_num == 1:
+            self.filter_1_begins_hour = time_value.hour
+            self.filter_1_begins_minute = time_value.minute
+        elif filter_num == 2:
+            self.filter_2_begins_hour = time_value.hour
+            self.filter_2_begins_minute = time_value.minute
+        payload = bytearray([0x0a, 0xbf, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_filter_cycle_runs_time(self, filter_num, time_value):
+        if filter_num == 1:
+            self.filter_1_runs_hour = time_value.hour
+            self.filter_1_runs_minute = time_value.minute
+        elif filter_num == 2:
+            self.filter_2_runs_hour = time_value.hour
+            self.filter_2_runs_minute = time_value.minute
+        payload = bytearray([0x0a, 0xbf, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
