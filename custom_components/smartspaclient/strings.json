@@ -1,10 +1,10 @@
 {
     "config": {
         "abort": {
-            "already_configured": "This bwa Wi-Fi Module is already configured"
+            "already_configured": "This Balboa Connect Wi-Fi Module is already configured"
         },
         "error": {
-            "cannot_connect": "Unable to connect to this bwa Wi-Fi Module, please try again",
+            "cannot_connect": "Unable to connect to this Balboa Connect Wi-Fi Module, please try again",
             "unknown": "Unexpected error"
         },
         "step": {
