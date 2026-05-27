@@ -1,16 +1,16 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Le p\u00e9riph\u00e9rique est d\u00e9j\u00e0 configur\u00e9"
+            "already_configured": "Ce module Wi-Fi Balboa Connect est déjà configuré"
         },
         "error": {
-            "cannot_connect": "Impossible de se connecter, veuillez r\u00e9essayer",
+            "cannot_connect": "Impossible de se connecter à ce module Wi-Fi Balboa Connect, veuillez réessayer",
             "unknown": "Erreur inattendue"
         },
         "step": {
             "user": {
                 "data": {
-                    "host": "Nom de l'h\u00f4te ou adresse IP",
+                    "host": "Nom de l'hôte ou adresse IP",
                     "name": "Nom"
                 }
             }
@@ -20,8 +20,8 @@
         "step": {
             "init": {
                 "data": {
-                    "scan_interval": "Fr\u00e9quence rafra\u00eechissement des entit\u00e9s (secondes)",
-                    "sync_time": "Gardez l'heure de votre contr\u00f4leur Balboa BP synchronis\u00e9e avec Home Assistant"
+                    "scan_interval": "Fréquence rafraîchissement des entités (secondes)",
+                    "sync_time": "Gardez l'heure de votre contrôleur Balboa BP synchronisée avec Home Assistant"
                 }
             }
         }
