@@ -106,4 +106,4 @@ class CannotConnect(exceptions.HomeAssistantError):
 
 
 class AlreadyConfigured(exceptions.HomeAssistantError):
-    """Error to indicate this device is already configured."""}, {
+    """Error to indicate this device is already configured."""
