@@ -1,25 +1,22 @@
 <span align="center">
 
-<a href="https://github.com/jozefnad/homeassistant-smartspaclient"><img src="https://raw.githubusercontent.com/jozefnad/homeassistant-smartspaclient/master/images/icon.png" width="150"></a>
+<a href="https://github.com/jpandre470-lab/balboa_connect"><img src="https://raw.githubusercontent.com/jpandre470-lab/balboa_connect/master/images/icon.png" width="150"></a>
 
 
-# SmartSpa Client - Home Assistant custom component
+# Balboa Connect - Home Assistant custom component
 
 </span>
 
 
-**SmartSpa Client** for HomeAssistant is inspired by several similar projects and the work of many people.
+**Balboa Connect** for Home Assistant is a custom integration designed to control and monitor Balboa BP-equipped spas via the Balboa BW50350 Wi-Fi Module or compatible TCP modules on port 4257.
 
-If you find this integration useful, you can buy me a beer to help keep development going.
-
-[![Buy me a beer](https://img.shields.io/badge/Donate-Buy%20me%20a%20beer-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://www.buymeacoffee.com/jozefnad)
-
+This integration is inspired by the original [SmartSpa Client](https://github.com/jozefnad/homeassistant-smartspaclient) project and adapted for the **Balboa Connect** ecosystem.
 
 ## What you need
 
 - A Hot Tub Equipped with a Balboa BP System
-- SmartSpa W-Fi Module, bwa™ Wi-Fi Module (50350) or custom module with TCP port 4257
-- Reference : http://www.balboawatergroup.com/bwa
+- Balboa BW50350 Wi-Fi Module or custom module with TCP port 4257
+- Reference: [Balboa Water Group](http://www.balboawatergroup.com/bwa)
 
 ## Installation
 
@@ -27,29 +24,35 @@ You can install this integration via [HACS](#hacs) or [manually](#manual).
 
 ### HACS
 
-Search for the Spa Client integration and choose install. Reboot Home Assistant and configure the Spa Client integration via the integrations page or press the blue button below.
+1. Add this repository as a custom repository in HACS:
+   - Go to HACS > Settings > Custom repositories
+   - Add `https://github.com/jpandre470-lab/balboa_connect` as a new repository (category: Integration)
+2. Search for the **Balboa Connect** integration and install it.
+3. Reboot Home Assistant and configure the **Balboa Connect** integration via the integrations page or press the blue button below.
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=smartspaclient)
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=balboa_connect)
 
 
 ### Manual
 
-Copy the `custom_components/smartspaclient` to your custom_components folder. Reboot Home Assistant and configure the SmartSpa Client integration via the integrations page or press the blue button below.
+1. Copy the `custom_components/balboa_connect` folder to your `custom_components` directory in your Home Assistant configuration.
+2. Reboot Home Assistant.
+3. Configure the **Balboa Connect** integration via the integrations page or press the blue button below.
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=smartspaclient)
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=balboa_connect)
 
 
 ## Preview
 
 <span align="center">
 
-<a href="https://github.com/jozefnad/homeassistant-smartspaclient"><img src="https://raw.githubusercontent.com/jozefnad/homeassistant-smartspaclient/master/images/preview.png" width="500"></a>
+<a href="https://github.com/jpandre470-lab/balboa_connect"><img src="https://raw.githubusercontent.com/jpandre470-lab/balboa_connect/master/images/preview.png" width="500"></a>
 
-<a href="https://github.com/jozefnad/homeassistant-smartspaclient"><img src="https://raw.githubusercontent.com/jozefnad/homeassistant-smartspaclient/master/images/options.png" width="400"></a>
+<a href="https://github.com/jpandre470-lab/balboa_connect"><img src="https://raw.githubusercontent.com/jpandre470-lab/balboa_connect/master/images/options.png" width="400"></a>
 
 </span>
 
-Several elements have already been validated (with my spa), but several remain to be validated **with your help**. The following table shows what is known to be functional: 
+Several elements have already been validated, but several remain to be validated **with your help**. The following table shows what is known to be functional:
 
 ### Climate & Temperature Control
 
@@ -87,8 +90,8 @@ Temperature Range | Switch | ✓ | Low, High
 
 Entity | Type | Tested | Programmed entity attributes
 ------ | ---- | ------ | ----------------------------
-Light 1 | Light | ✓ | On/Off, Brightness
-Light 2 | Light | ? | On/Off, Brightness
+Light 1 | Light | ✓ | On/Off
+Light 2 | Light | ? | On/Off
 Blower | Switch | ✓ | Off, On
 Mister | Switch | ? | Off, On
 Auxiliary 1 | Switch | ? | On/Off
@@ -176,7 +179,7 @@ Time sync with Home Assistant | ✓
 6. Process user commands and send appropriate messages with CRC-8 validation
 
 ✓ = Tested and working properly  
-? = Need your help to validate if this working properly (I don't have these options on my spa)
+? = Need your help to validate if this working properly
 
 ## Entity Statistics
 
@@ -185,7 +188,7 @@ Time sync with Home Assistant | ✓
 - **Total Switches:** 10+ (Pumps 1-6, Lights 1-2, Blower, Mister, Heat Mode, Standby Mode, Temp Range, Filter Cycle 2, Circulation Pump, Panel Lock, Settings Lock, Reminders, M8 AI)
 - **Total Select Entities:** 3 (Temperature Scale, Clock Mode, Cleanup Cycle)
 - **Climate Entities:** 1 (Spa Thermostat with full HVAC control)
-- **Light Entities:** 2 (Light 1, Light 2 with brightness control)
+- **Light Entities:** 2 (Light 1, Light 2)
 - **Time Entities:** 5 (Filter Cycle 1 Begin/Run times, Filter Cycle 2 Begin/Run times, plus schedule support)
 
 ## Key Features & Improvements
