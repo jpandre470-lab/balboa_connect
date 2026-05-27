@@ -292,7 +292,7 @@ class spaclient:
         return chunk
     
     async def read_msg_async(self):
-        """Async wrapper for message reading - doesn't block event loop."""
+        """Async wrapper for message reading."""
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
             
@@ -303,7 +303,7 @@ class spaclient:
         try:
             chunk = await self._loop.run_in_executor(self._executor, self._read_msg_sync)
         except Exception as e:
-            _LOGGER.debug("Error in read_msg_async executor: %s", e)
+            _LOGGER.debug("Error in read_msg_async: %s", e)
             chunk = None
         finally:
             self.socket_l.release()
@@ -319,12 +319,11 @@ class spaclient:
         return self._process_chunk(chunk)
     
     def read_msg(self):
-        """Legacy sync read_msg for backward compatibility - USE read_msg_async INSTEAD."""
+        """Legacy sync read_msg - USE read_msg_async INSTEAD."""
         if self.socket_s is None:
             return False
             
         self.socket_l.acquire()
-
         try:
             len_chunk = self.socket_s.recv(2)
         except (socket.timeout, socket.error, OSError) as e:
@@ -341,13 +340,11 @@ class spaclient:
         if len_chunk == b'~' or len_chunk == b'' or len(len_chunk) == 0:
             self.socket_l.release()
             return True
-
         if len(len_chunk) < 2:
             self.socket_l.release()
             return True
             
         length = len_chunk[1]
-
         if int(length) == 0:
             self.socket_l.release()
             return True
@@ -442,7 +439,7 @@ class spaclient:
         return True
 
     async def read_all_msg(self):
-        """Main message reading loop with proper stop handling."""
+        """Main message reading loop."""
         _LOGGER.debug("Message reading task started")
         _next_reconnect_at = None
         while not self._stop_flag:
@@ -473,7 +470,7 @@ class spaclient:
         _LOGGER.debug("Message reading task stopped")
     
     async def stop(self):
-        """Stop all background tasks and close connections."""
+        """Stop all background tasks."""
         _LOGGER.info("Stopping spa client")
         self._stop_flag = True
         await self._close_socket()
@@ -482,7 +479,7 @@ class spaclient:
         _LOGGER.info("Spa client stopped")
 
     def parse_additional_information_response(self, byte_array):
-        """ Parse additional information response."""
+        """Parse additional information response."""
         self.add_info_low_range_min = byte_array[2]
         self.add_info_low_range_max = byte_array[3]
         self.add_info_high_range_min = byte_array[4]
@@ -494,7 +491,7 @@ class spaclient:
         self.additional_information_loaded = True
 
     def parse_configuration_response(self, byte_array):
-        """Parse a panel config response."""
+        """Parse configuration response."""
         self.cfg_pump_array[0] = int((byte_array[0] & 0x03))
         self.cfg_pump_array[1] = int((byte_array[0] & 0x0c) >> 2)
         self.cfg_pump_array[2] = int((byte_array[0] & 0x30) >> 4)
@@ -575,7 +572,7 @@ class spaclient:
         self.preferences_loaded = True
 
     def parse_status_update(self, byte_array):
-        """ Parse a status update from the spa."""
+        """Parse a status update from the spa."""
         self.hold_mode = 1 if byte_array[0] == 0x05 else 0
         self.priming = 1 if byte_array[1] == 0x01 else 0
         self.current_temp = byte_array[2] if (byte_array[2] != 255) else None
@@ -614,6 +611,7 @@ class spaclient:
         self.flip_screen = byte_array[23]
         self.socket_is_connected = True
 
+    # Request methods
     def send_fault_log_request(self):
         payload = bytearray([0x0a, 0xbf, 0x28, 0x00])
         payload[3] = self.compute_checksum(3, payload)
@@ -664,6 +662,7 @@ class spaclient:
             _LOGGER.warning("Error sending message: %s", e)
 
     def print_variables(self):
+        """Print all variables for debugging."""
         _LOGGER.debug("=== Spa Client Variables ===")
         _LOGGER.debug(f"Hold Mode: {self.hold_mode}")
         _LOGGER.debug(f"Priming: {self.priming}")
@@ -822,3 +821,216 @@ class spaclient:
         elif self.spa_state == 0x17:
             return "Test Mode"
         return "Unknown"
+
+    def get_reminder_type(self):
+        return self.reminder_type
+
+    def get_reminder_type_text(self):
+        if self.reminder_type == 0x00:
+            return "None"
+        elif self.reminder_type == 0x04:
+            return "Clean Filter"
+        elif self.reminder_type == 0x0A:
+            return "Check pH"
+        elif self.reminder_type == 0x09:
+            return "Check Sanitizer"
+        elif self.reminder_type == 0x1E:
+            return "Fault"
+        return "Unknown"
+
+    def get_sensor_a_temp(self):
+        return self.sensor_a_temp
+
+    def get_sensor_b_temp(self):
+        return self.sensor_b_temp
+
+    def get_panel_locked(self):
+        return self.panel_locked
+
+    def get_settings_locked(self):
+        return self.settings_locked
+
+    def get_wifi_state(self):
+        return self.wifi_state
+
+    def get_wifi_state_text(self):
+        if self.wifi_state == 0:
+            return "Connected"
+        elif self.wifi_state == 1:
+            return "Connecting"
+        return "Not Connected"
+
+    def get_notification(self):
+        return self.notification
+
+    def get_notification_type(self):
+        return self.notification_type
+
+    def get_cleanup_cycle_active(self):
+        return self.cleanup_cycle_active
+
+    def get_sensor_ab_temps(self):
+        return self.sensor_ab_temps
+
+    def get_m8_cycle_time(self):
+        return self.m8_cycle_time
+
+    def get_flip_screen(self):
+        return self.flip_screen
+
+    def get_gateway_status(self):
+        return self.socket_is_connected
+
+    def get_macaddr(self):
+        return self.id_macaddr
+
+    def get_model_name(self):
+        return self.info_model_name
+
+    def get_ssid(self):
+        return self.info_ssid
+
+    def get_info_heater_voltage(self):
+        return self.info_heater_voltage
+
+    def get_info_heater_type(self):
+        return self.info_heater_type
+
+    def get_info_cfg_sig(self):
+        return self.info_cfg_sig
+
+    def get_fault_log_msg_code(self):
+        return self.fault_log_msg_code
+
+    def get_filter2_enabled(self):
+        return self.filter_2_enabled
+
+    # Setter methods
+    async def set_temperature(self, temp):
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x00, temp, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_pump(self, pump_num, state):
+        pump_states = {"Off": 0x00, "Low": 0x01, "High": 0x02}
+        state_value = pump_states.get(state, 0x00)
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, pump_num - 1, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_light(self, light_num, state):
+        state_value = 0x01 if state else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x06 + light_num - 1, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_blower(self, state):
+        state_value = 0x01 if state == "On" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x08, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_mister(self, state):
+        state_value = 0x01 if state == "On" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x09, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_aux(self, aux_num, state):
+        state_value = 0x01 if state == "On" else 0x00
+        aux_pos = 0x0A if aux_num == 1 else 0x0B
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, aux_pos, state_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_heat_mode(self, mode):
+        mode_value = 0x01 if mode == "Ready" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x01, mode_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_standby_mode(self):
+        payload = bytearray([0x0a, 0xbf, 0x1d, 0x00, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_temp_range(self, range_value):
+        range_map = {"Low": 0x00, "High": 0x01}
+        range_value = range_map.get(range_value, 0x00)
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x04, range_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_temperature_scale(self, scale):
+        scale_value = 0x01 if scale == "Celsius" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x03, scale_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_clock_mode(self, mode):
+        mode_value = 0x01 if mode == "24 Hr" else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x02, mode_value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_cleanup_cycle(self, value):
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x05, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_reminders(self, enabled):
+        value = 0x01 if enabled else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x01, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_m8_ai(self, enabled):
+        value = 0x01 if enabled else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x27, 0x08, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_panel_lock(self, locked):
+        value = 0x01 if locked else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x2d, 0x01, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_settings_lock(self, locked):
+        value = 0x01 if locked else 0x00
+        payload = bytearray([0x0a, 0xbf, 0x2d, 0x02, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_hold_mode(self, value):
+        payload = bytearray([0x0a, 0xbf, 0x1d, 0x00, value, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_filter2_enabled(self, value):
+        self.filter_2_enabled = value
+
+    async def set_current_time(self):
+        from homeassistant.util.dt import now
+        current_time = now()
+        hour = current_time.hour
+        minute = current_time.minute
+        payload = bytearray([0x0a, 0xbf, 0x11, 0x00, 0x04, hour, minute, 0x00])
+        payload[3] = self.compute_checksum(3, payload)
+        self._send_message(payload)
+
+    def set_filter_cycle_begins_time(self, filter_num, time_value):
+        if filter_num == 1:
+            self.filter_1_begins_hour = time_value.hour
+            self.filter_1_begins_minute = time_value.minute
+        elif filter_num == 2:
+            self.filter_2_begins_hour = time_value.hour
+            self.filter_2_begins_minute = time_value.minute
+
+    def set_filter_cycle_runs_time(self, filter_num, time_value):
+        if filter_num == 1:
+            self.filter_1_runs_hour = time_value.hour
+            self.filter_1_runs_minute = time_value.minute
+        elif filter_num == 2:
+            self.filter_2_runs_hour = time_value.hour
+            self.filter_2_runs_minute = time_value.minute
