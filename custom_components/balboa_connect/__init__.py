@@ -18,7 +18,6 @@ from .const import (
 from .spaclient import spaclient
 
 # Task storage keys
-DATA_KEEP_ALIVE_TASK = "keep_alive_task"
 DATA_READ_MSG_TASK = "read_msg_task"
 DATA_SYNC_TIME_TASK = "sync_time_task"
 DATA_COMMAND_QUEUE_TASK = "command_queue_task"
