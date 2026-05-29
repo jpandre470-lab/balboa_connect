@@ -25,6 +25,9 @@ class spaclient:
         self.socket_l = Lock()
         self.socket_s = None
         self.socket_host_ip = host_ip
+        self._command_queue = None  # Async queue for commands
+        self._command_in_progress = False  # Flag to prevent command overlap
+        self._last_command_time = None  # Timestamp of last command
         
         """ Task control variables """
         self._stop_flag = False
@@ -152,6 +155,8 @@ class spaclient:
         """Create and connect socket with proper error handling."""
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
+            if self._command_queue is None:
+                self._command_queue = asyncio.Queue()
             
         if self.socket_s is not None:
             return True
@@ -215,6 +220,50 @@ class spaclient:
             self.socket_s = None
         self.socket_is_connected = False
 
+
+    async def _send_command_safe(self, command_func, *args, **kwargs):
+        """Send a command only when spa is connected, queue if not."""
+        async def command_task():
+            try:
+                # Wait for socket to be connected
+                while not self.socket_is_connected and not self._stop_flag:
+                    await asyncio.sleep(0.5)
+                
+                if self._stop_flag:
+                    return None
+                
+                # Wait for previous command to finish
+                while self._command_in_progress and not self._stop_flag:
+                    await asyncio.sleep(0.1)
+                
+                if self._stop_flag:
+                    return None
+                
+                self._command_in_progress = True
+                result = await command_func(*args, **kwargs)
+                self._command_in_progress = False
+                self._last_command_time = asyncio.get_event_loop().time()
+                return result
+            
+            except Exception as e:
+                self._command_in_progress = False
+                _LOGGER.error("Error sending command: %s", e)
+                return None
+        
+        # Put the command in the queue
+        await self._command_queue.put(command_task)
+
+    async def process_command_queue(self):
+        """Process commands from the queue."""
+        while not self._stop_flag:
+            try:
+                command_task = await self._command_queue.get()
+                await command_task()
+                self._command_queue.task_done()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                _LOGGER.error("Error in command queue processor: %s", e)
     async def _reconnect_and_reinit(self):
         """Reconnect socket and send a keep-alive ping to resume spa comms."""
         connected = await self.get_socket()
@@ -222,7 +271,7 @@ class spaclient:
             _LOGGER.info("Reconnected to spa at %s", self.socket_host_ip)
             # Sending fault log request acts as a keep-alive ping;
             # the spa will resume sending status updates on its own.
-            await self.send_fault_log_request()
+            await self._send_command_safe(self.send_fault_log_request)
         return connected
 
     async def keep_alive_call(self):
@@ -239,7 +288,7 @@ class spaclient:
                         await asyncio.sleep(RECONNECT_DELAY)
                         continue
                 else:
-                    await self.send_fault_log_request()
+                    await self._send_command_safe(self.send_fault_log_request)
             except asyncio.CancelledError:
                 _LOGGER.debug("Keep-alive task cancelled")
                 break
@@ -468,7 +517,7 @@ class spaclient:
                     await self.read_msg_async()
                     await asyncio.sleep(0.1)
                 else:
-                    # Socket is gone — try to reconnect quickly instead of
+                    # Socket is gone  try to reconnect quickly instead of
                     # waiting up to 30s for keep_alive_call to wake up.
                     now = asyncio.get_event_loop().time()
                     if _next_reconnect_at is None:
@@ -1623,3 +1672,4 @@ class spaclient:
         _LOGGER.info("self.gfci_test_loaded = %s", self.gfci_test_loaded)
         _LOGGER.info("self.gfci_test_result = %s", self.gfci_test_result)
         _LOGGER.info("")
+
