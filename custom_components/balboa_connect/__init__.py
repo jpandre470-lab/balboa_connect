@@ -96,10 +96,8 @@ async def async_setup_entry(hass, config_entry):
 
     await update_listener(hass, config_entry)
 
-    keep_alive_task = hass.loop.create_task(spa.keep_alive_call())
     read_msg_task = hass.loop.create_task(spa.read_all_msg())
     
-    hass.data[DOMAIN][config_entry.entry_id][DATA_KEEP_ALIVE_TASK] = keep_alive_task
     hass.data[DOMAIN][config_entry.entry_id][DATA_READ_MSG_TASK] = read_msg_task
 
     await hass.config_entries.async_forward_entry_setups(config_entry, SPACLIENT_COMPONENTS)
@@ -117,7 +115,7 @@ async def async_unload_entry(hass, config_entry) -> bool:
     if spa:
         await spa.stop()
     
-    for task_key in [DATA_KEEP_ALIVE_TASK, DATA_READ_MSG_TASK, DATA_SYNC_TIME_TASK]:
+    for task_key in [DATA_READ_MSG_TASK, DATA_SYNC_TIME_TASK]:
         task = entry_data.get(task_key)
         if task and not task.done():
             task.cancel()
