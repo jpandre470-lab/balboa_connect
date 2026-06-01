@@ -11,8 +11,8 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 from threading import Lock
 
 # Constants for timeouts and retries
-# 15s timeout: Balboa sends status every ~1s, so 15s only triggers on real outages
-SOCKET_TIMEOUT = 15
+# 5s timeout: Balboa sends status every ~1s, so 5s is enough to detect real outages
+SOCKET_TIMEOUT = 5
 REQUEST_TIMEOUT = 30  # Maximum time to wait for a response
 MAX_RETRIES = 3
 RECONNECT_DELAY = 5
@@ -31,7 +31,7 @@ class spaclient:
         
         """ Task control variables """
         self._stop_flag = False
-        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="spa_socket")
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="spa_socket")
         self._loop = None
 
         """ Status update variable """
@@ -172,6 +172,8 @@ class spaclient:
                 lambda: self.socket_s.connect((self.socket_host_ip, 4257))
             )
             _LOGGER.debug("Socket connected to %s:4257", self.socket_host_ip)
+
+            self.socket_is_connected = True
             return True
         except (socket.timeout, socket.error, OSError) as e:
             _LOGGER.warning("Socket connection error: %s", e)
@@ -264,38 +266,15 @@ class spaclient:
                 break
             except Exception as e:
                 _LOGGER.error("Error in command queue processor: %s", e)
+
     async def _reconnect_and_reinit(self):
-        """Reconnect socket and send a keep-alive ping to resume spa comms."""
+        """Reconnect socket - passive protocol: no commands sent."""
         connected = await self.get_socket()
         if connected:
             _LOGGER.info("Reconnected to spa at %s", self.socket_host_ip)
-            # Sending fault log request acts as a keep-alive ping;
-            # the spa will resume sending status updates on its own.
-            await self._send_command_safe(self.send_fault_log_request)
+            # Passive protocol: spa will resume sending status updates on its own
+            # NO commands are sent here - purely passive
         return connected
-
-    async def keep_alive_call(self):
-        """Keep-alive task with proper stop handling."""
-        _LOGGER.debug("Keep-alive task started")
-        while not self._stop_flag:
-            try:
-                if self.socket_s is None:
-                    # read_all_msg handles fast reconnect; this is a backup
-                    _LOGGER.debug("Keep-alive: socket is None, backup reconnect attempt")
-                    connected = await self._reconnect_and_reinit()
-                    if not connected:
-                        _LOGGER.warning("Keep-alive: reconnection failed, will retry")
-                        await asyncio.sleep(RECONNECT_DELAY)
-                        continue
-                else:
-                    await self._send_command_safe(self.send_fault_log_request)
-            except asyncio.CancelledError:
-                _LOGGER.debug("Keep-alive task cancelled")
-                break
-            except Exception as e:
-                _LOGGER.error("Error in keep_alive_call: %s", e)
-                await self._close_socket()
-            await asyncio.sleep(30)
         _LOGGER.debug("Keep-alive task stopped")
 
     def compute_checksum(self, length, payload):
@@ -435,7 +414,6 @@ class spaclient:
                 try:
                     self.parse_status_update(chunk[3:])
                     self.status_chunk_array = chunk
-                    self.socket_is_connected = True
                 except Exception as e:
                     _LOGGER.warning("Error parsing status update: %s", e)
                 return True
@@ -518,7 +496,7 @@ class spaclient:
                     await asyncio.sleep(0.1)
                 else:
                     # Socket is gone  try to reconnect quickly instead of
-                    # waiting up to 30s for keep_alive_call to wake up.
+                    # waiting for reconnection attempt.
                     now = asyncio.get_event_loop().time()
                     if _next_reconnect_at is None:
                         _next_reconnect_at = now + RECONNECT_DELAY
@@ -1268,12 +1246,8 @@ class spaclient:
             return True
         except (socket.timeout, socket.error, OSError) as e:
             _LOGGER.warning("Socket send error: %s", e)
-            self.socket_is_connected = False
-            try:
-                self.socket_s.close()
-            except Exception:
-                pass
-            self.socket_s = None
+            # DO NOT close socket or set socket_is_connected = False here
+            # The socket error will be detected by read_msg_async() in the executor thread
             return False
     
     async def _send_message_async(self, type, payload):
@@ -1672,4 +1646,5 @@ class spaclient:
         _LOGGER.info("self.gfci_test_loaded = %s", self.gfci_test_loaded)
         _LOGGER.info("self.gfci_test_result = %s", self.gfci_test_result)
         _LOGGER.info("")
+
 
