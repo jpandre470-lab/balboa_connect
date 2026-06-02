@@ -6,12 +6,14 @@ import voluptuous as vol
 from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
+    CONF_SYNC_TIME_INTERVAL,
     CONF_FAULT_LOG_ENABLED,
     CONF_FAULT_LOG_INTERVAL,
-    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SYNC_TIME_INTERVAL,
     DEFAULT_FAULT_LOG_INTERVAL,
     DOMAIN,
-    MIN_SCAN_INTERVAL,
+    MIN_SYNC_TIME_INTERVAL,
+    MAX_SYNC_TIME_INTERVAL,
     MIN_FAULT_LOG_INTERVAL,
     MAX_FAULT_LOG_INTERVAL,
 )
@@ -20,7 +22,6 @@ from homeassistant import config_entries, core, exceptions
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
-    CONF_SCAN_INTERVAL,
 )
 from homeassistant.core import callback
 
@@ -82,12 +83,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input:
             return self.async_create_entry(title="", data=user_input)
 
+        # Subset of values for select fields
+        SYNC_INTERVAL_OPTIONS = [1, 2, 3, 4, 6, 8, 12, 24]
+        FAULT_LOG_INTERVAL_OPTIONS = [1, 2, 3, 4, 6, 8, 12, 24]
+
         data_schema = vol.Schema(
             {
-                vol.Optional(CONF_SCAN_INTERVAL, default=self.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
-                vol.Optional(CONF_SYNC_TIME, default=self.config_entry.options.get(CONF_SYNC_TIME, False)): bool,
+                vol.Optional(CONF_SYNC_TIME, default=True): bool,
+                vol.Optional(CONF_SYNC_TIME_INTERVAL, default=self.config_entry.options.get(CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL)): vol.In(SYNC_INTERVAL_OPTIONS),
                 vol.Optional(CONF_FAULT_LOG_ENABLED, default=self.config_entry.options.get(CONF_FAULT_LOG_ENABLED, False)): bool,
-                vol.Optional(CONF_FAULT_LOG_INTERVAL, default=self.config_entry.options.get(CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL)): vol.All(cv.positive_int, vol.Clamp(min=MIN_FAULT_LOG_INTERVAL, max=MAX_FAULT_LOG_INTERVAL)),
+                vol.Optional(CONF_FAULT_LOG_INTERVAL, default=self.config_entry.options.get(CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL)): vol.In(FAULT_LOG_INTERVAL_OPTIONS),
             }
         )
         return self.async_show_form(step_id="init", data_schema=data_schema)
