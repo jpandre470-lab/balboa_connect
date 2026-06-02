@@ -1,17 +1,24 @@
 """Config flow for Balboa Connect integration."""
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
     CONF_SYNC_TIME_INTERVAL,
+    CONF_SOCKET_TIMEOUT,
     CONF_FAULT_LOG_ENABLED,
     CONF_FAULT_LOG_INTERVAL,
+    DEFAULT_SCAN_INTERVAL,
     DEFAULT_SYNC_TIME_INTERVAL,
+    DEFAULT_SOCKET_TIMEOUT,
     DEFAULT_FAULT_LOG_INTERVAL,
     DOMAIN,
+    MIN_SCAN_INTERVAL,
     MIN_SYNC_TIME_INTERVAL,
     MAX_SYNC_TIME_INTERVAL,
+    MIN_SOCKET_TIMEOUT,
+    MAX_SOCKET_TIMEOUT,
     MIN_FAULT_LOG_INTERVAL,
     MAX_FAULT_LOG_INTERVAL,
 )
@@ -92,6 +99,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
                     )
                 ): vol.In(SYNC_INTERVAL_OPTIONS),
+                vol.Optional(
+                    CONF_SOCKET_TIMEOUT,
+                    default=self.config_entry.options.get(
+                        CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT
+                    )
+                ): vol.All(cv.positive_int, vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT)),
                 vol.Optional(CONF_FAULT_LOG_ENABLED, default=False): bool,
                 vol.Optional(
                     CONF_FAULT_LOG_INTERVAL,

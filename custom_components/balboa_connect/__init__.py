@@ -1,20 +1,27 @@
 """Init file for Balboa Connect integration."""
 import asyncio
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
     CONF_SYNC_TIME_INTERVAL,
+    CONF_SOCKET_TIMEOUT,
     CONF_FAULT_LOG_ENABLED,
     CONF_FAULT_LOG_INTERVAL,
     DATA_LISTENER,
+    DEFAULT_SCAN_INTERVAL,
     DEFAULT_SYNC_TIME_INTERVAL,
+    DEFAULT_SOCKET_TIMEOUT,
     DEFAULT_FAULT_LOG_INTERVAL,
     DOMAIN,
     ICONS,
+    MIN_SCAN_INTERVAL,
     MIN_SYNC_TIME_INTERVAL,
     MAX_SYNC_TIME_INTERVAL,
+    MIN_SOCKET_TIMEOUT,
+    MAX_SOCKET_TIMEOUT,
     MIN_FAULT_LOG_INTERVAL,
     MAX_FAULT_LOG_INTERVAL,
     SPA,
@@ -35,6 +42,19 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity import Entity
 
 
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Required(CONF_HOST): cv.string,
+                vol.Required(CONF_NAME): cv.string,
+            }
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
+
 async def async_setup(hass, base_config):
     """Configure the Balboa Connect component using flow only."""
     hass.data.setdefault(DOMAIN, {})
@@ -50,7 +70,8 @@ async def async_setup(hass, base_config):
 
 async def async_setup_entry(hass, config_entry):
     """Set up Balboa Connect from a config entry."""
-    spa = spaclient(config_entry.data[CONF_HOST])
+    socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
+    spa = spaclient(config_entry.data[CONF_HOST], socket_timeout=socket_timeout)
     hass.data[DOMAIN][config_entry.entry_id] = {
         SPA: spa,
         DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
@@ -118,6 +139,27 @@ async def update_listener(hass, config_entry):
     """Handle options update."""
     entry_data = hass.data[DOMAIN][config_entry.entry_id]
     spa = entry_data.get(SPA)
+
+    # Handle socket timeout - need to recreate spa client
+    socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
+    if hasattr(spa, 'socket_timeout') and spa.socket_timeout != socket_timeout:
+        _LOGGER.info("Socket timeout changed to %s, recreating spa client", socket_timeout)
+        await spa.stop()
+        spa = spaclient(config_entry.data[CONF_HOST], socket_timeout=socket_timeout)
+        entry_data[SPA] = spa
+        try:
+            connected = await spa.validate_connection()
+            if connected:
+                await spa.send_additional_information_request()
+                await spa.send_configuration_request()
+                await spa.send_fault_log_request()
+                await spa.send_filter_cycles_request()
+                await spa.send_gfci_test_request()
+                await spa.send_information_request()
+                await spa.send_preferences_request()
+                await spa.send_module_identification_request()
+        except Exception as e:
+            _LOGGER.error("Error reinitializing spa with new timeout: %s", e)
 
     # Handle sync time task
     sync_time_enabled = config_entry.options.get(CONF_SYNC_TIME, True)
