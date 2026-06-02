@@ -6,9 +6,14 @@ import voluptuous as vol
 from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
+    CONF_FAULT_LOG_ENABLED,
+    CONF_FAULT_LOG_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_FAULT_LOG_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    MIN_FAULT_LOG_INTERVAL,
+    MAX_FAULT_LOG_INTERVAL,
 )
 from .spaclient import spaclient
 from homeassistant import config_entries, core, exceptions
@@ -79,8 +84,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
-                vol.Optional(CONF_SCAN_INTERVAL, default=self.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
-                vol.Optional(CONF_SYNC_TIME, default=self.config_entry.options.get(CONF_SYNC_TIME, False),): bool,
+                vol.Optional(CONF_SCAN_INTERVAL, default=self.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
+                vol.Optional(CONF_SYNC_TIME, default=self.config_entry.options.get(CONF_SYNC_TIME, False)): bool,
+                vol.Optional(CONF_FAULT_LOG_ENABLED, default=self.config_entry.options.get(CONF_FAULT_LOG_ENABLED, False)): bool,
+                vol.Optional(CONF_FAULT_LOG_INTERVAL, default=self.config_entry.options.get(CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL)): vol.All(cv.positive_int, vol.Clamp(min=MIN_FAULT_LOG_INTERVAL, max=MAX_FAULT_LOG_INTERVAL)),
             }
         )
         return self.async_show_form(step_id="init", data_schema=data_schema)
