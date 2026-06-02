@@ -1,8 +1,6 @@
 """Config flow for Balboa Connect integration."""
-import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
-# Import the device class from the component that you want to support
 from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
@@ -18,7 +16,7 @@ from .const import (
     MAX_FAULT_LOG_INTERVAL,
 )
 from .spaclient import spaclient
-from homeassistant import config_entries, core, exceptions
+from homeassistant import config_entries, exceptions
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
@@ -37,7 +35,6 @@ DATA_SCHEMA = vol.Schema(
 @callback
 def configured_instances(hass):
     """Return a set of configured Balboa Connect instances."""
-
     return {entry.title for entry in hass.config_entries.async_entries(DOMAIN)}
 
 
@@ -83,16 +80,25 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input:
             return self.async_create_entry(title="", data=user_input)
 
-        # Subset of values for select fields
         SYNC_INTERVAL_OPTIONS = [1, 2, 3, 4, 6, 8, 12, 24]
         FAULT_LOG_INTERVAL_OPTIONS = [1, 2, 3, 4, 6, 8, 12, 24]
 
         data_schema = vol.Schema(
             {
                 vol.Optional(CONF_SYNC_TIME, default=True): bool,
-                vol.Optional(CONF_SYNC_TIME_INTERVAL, default=self.config_entry.options.get(CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL)): vol.In(SYNC_INTERVAL_OPTIONS),
-                vol.Optional(CONF_FAULT_LOG_ENABLED, default=self.config_entry.options.get(CONF_FAULT_LOG_ENABLED, False)): bool,
-                vol.Optional(CONF_FAULT_LOG_INTERVAL, default=self.config_entry.options.get(CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL)): vol.In(FAULT_LOG_INTERVAL_OPTIONS),
+                vol.Optional(
+                    CONF_SYNC_TIME_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
+                    )
+                ): vol.In(SYNC_INTERVAL_OPTIONS),
+                vol.Optional(CONF_FAULT_LOG_ENABLED, default=False): bool,
+                vol.Optional(
+                    CONF_FAULT_LOG_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL
+                    )
+                ): vol.In(FAULT_LOG_INTERVAL_OPTIONS),
             }
         )
         return self.async_show_form(step_id="init", data_schema=data_schema)
@@ -100,15 +106,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
 async def validate_input(hass, data):
     """Validate the user input allows us to connect."""
-
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.data[CONF_HOST] == data[CONF_HOST]:
             raise AlreadyConfigured
 
     spa = spaclient(data[CONF_HOST])
-
     connected = await spa.validate_connection()
-
     if not connected:
         raise CannotConnect
 

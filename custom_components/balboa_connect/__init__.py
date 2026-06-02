@@ -1,68 +1,43 @@
 """Init file for Balboa Connect integration."""
 import asyncio
-import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
-# Import the device class from the component that you want to support
 from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
+    CONF_SYNC_TIME_INTERVAL,
     CONF_FAULT_LOG_ENABLED,
     CONF_FAULT_LOG_INTERVAL,
-    CONF_SOCKET_TIMEOUT,
     DATA_LISTENER,
-    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SYNC_TIME_INTERVAL,
     DEFAULT_FAULT_LOG_INTERVAL,
-    DEFAULT_SOCKET_TIMEOUT,
     DOMAIN,
     ICONS,
-    MIN_SCAN_INTERVAL,
+    MIN_SYNC_TIME_INTERVAL,
+    MAX_SYNC_TIME_INTERVAL,
     MIN_FAULT_LOG_INTERVAL,
     MAX_FAULT_LOG_INTERVAL,
-    MIN_SOCKET_TIMEOUT,
-    MAX_SOCKET_TIMEOUT,
     SPA,
     SPACLIENT_COMPONENTS,
 )
 from .spaclient import spaclient
 
-# Task storage keys
 DATA_READ_MSG_TASK = "read_msg_task"
 DATA_SYNC_TIME_TASK = "sync_time_task"
 DATA_FAULT_LOG_TASK = "fault_log_task"
+
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
-    CONF_SCAN_INTERVAL,
 )
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity import Entity
 
 
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {
-                vol.Required(CONF_HOST): cv.string,
-                vol.Required(CONF_NAME): cv.string,
-                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
-                vol.Optional(CONF_SYNC_TIME, default=False): bool,
-                vol.Optional(CONF_FAULT_LOG_ENABLED, default=False): bool,
-                vol.Optional(CONF_FAULT_LOG_INTERVAL, default=DEFAULT_FAULT_LOG_INTERVAL): vol.All(cv.positive_int, vol.Clamp(min=MIN_FAULT_LOG_INTERVAL, max=MAX_FAULT_LOG_INTERVAL)),
-                vol.Optional(CONF_SOCKET_TIMEOUT, default=DEFAULT_SOCKET_TIMEOUT): vol.All(cv.positive_int, vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT)),
-            }
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
-)
-
-
 async def async_setup(hass, base_config):
     """Configure the Balboa Connect component using flow only."""
-
     hass.data.setdefault(DOMAIN, {})
-
     if DOMAIN in base_config:
         for entry in base_config[DOMAIN]:
             hass.async_create_task(
@@ -75,11 +50,9 @@ async def async_setup(hass, base_config):
 
 async def async_setup_entry(hass, config_entry):
     """Set up Balboa Connect from a config entry."""
-
-    socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
-    spa = spaclient(config_entry.data[CONF_HOST], socket_timeout=socket_timeout)
+    spa = spaclient(config_entry.data[CONF_HOST])
     hass.data[DOMAIN][config_entry.entry_id] = {
-        SPA: spa, 
+        SPA: spa,
         DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         DATA_READ_MSG_TASK: None,
         DATA_SYNC_TIME_TASK: None,
@@ -88,7 +61,6 @@ async def async_setup_entry(hass, config_entry):
 
     try:
         connected = await spa.validate_connection()
-
         if not connected:
             _LOGGER.error("Failed to connect to spa at %s", config_entry.data[CONF_HOST])
             raise ConfigEntryNotReady
@@ -101,33 +73,26 @@ async def async_setup_entry(hass, config_entry):
         await spa.send_information_request()
         await spa.send_preferences_request()
         await spa.send_module_identification_request()
-        
     except Exception as e:
         _LOGGER.error("Error during spa initialization: %s", e)
         await spa.stop()
         raise ConfigEntryNotReady from e
 
     await update_listener(hass, config_entry)
-
     read_msg_task = hass.loop.create_task(spa.read_all_msg())
-    
     hass.data[DOMAIN][config_entry.entry_id][DATA_READ_MSG_TASK] = read_msg_task
-
     await hass.config_entries.async_forward_entry_setups(config_entry, SPACLIENT_COMPONENTS)
-
     spa.print_variables()
     return True
 
 
 async def async_unload_entry(hass, config_entry) -> bool:
     """Unload a config entry."""
-    
     entry_data = hass.data[DOMAIN][config_entry.entry_id]
-    
     spa = entry_data.get(SPA)
     if spa:
         await spa.stop()
-    
+
     for task_key in [DATA_READ_MSG_TASK, DATA_SYNC_TIME_TASK, DATA_FAULT_LOG_TASK]:
         task = entry_data.get(task_key)
         if task and not task.done():
@@ -136,48 +101,31 @@ async def async_unload_entry(hass, config_entry) -> bool:
                 await task
             except asyncio.CancelledError:
                 pass
-    
+
     for listener in entry_data.get(DATA_LISTENER, []):
         if callable(listener):
             listener()
 
-    if unload_ok := await hass.config_entries.async_unload_platforms(config_entry, SPACLIENT_COMPONENTS):
+    if unload_ok := await hass.config_entries.async_unload_platforms(
+        config_entry, SPACLIENT_COMPONENTS
+    ):
         hass.data[DOMAIN].pop(config_entry.entry_id)
-    
     _LOGGER.info("Balboa Connect unloaded successfully")
     return unload_ok
 
 
 async def update_listener(hass, config_entry):
     """Handle options update."""
-
     entry_data = hass.data[DOMAIN][config_entry.entry_id]
     spa = entry_data.get(SPA)
-    
-    # Handle socket timeout - need to recreate spa client
-    socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
-    if hasattr(spa, 'socket_timeout') and spa.socket_timeout != socket_timeout:
-        _LOGGER.info("Socket timeout changed to %s, recreating spa client", socket_timeout)
-        await spa.stop()
-        spa = spaclient(config_entry.data[CONF_HOST], socket_timeout=socket_timeout)
-        entry_data[SPA] = spa
-        # Re-initialize connection
-        try:
-            connected = await spa.validate_connection()
-            if connected:
-                await spa.send_additional_information_request()
-                await spa.send_configuration_request()
-                await spa.send_fault_log_request()
-                await spa.send_filter_cycles_request()
-                await spa.send_gfci_test_request()
-                await spa.send_information_request()
-                await spa.send_preferences_request()
-                await spa.send_module_identification_request()
-        except Exception as e:
-            _LOGGER.error("Error reinitializing spa with new timeout: %s", e)
-    
+
     # Handle sync time task
-    if config_entry.options.get(CONF_SYNC_TIME):
+    sync_time_enabled = config_entry.options.get(CONF_SYNC_TIME, True)
+    sync_time_interval = config_entry.options.get(
+        CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
+    )
+
+    if sync_time_enabled:
         existing_task = entry_data.get(DATA_SYNC_TIME_TASK)
         if existing_task and not existing_task.done():
             existing_task.cancel()
@@ -187,14 +135,14 @@ async def update_listener(hass, config_entry):
                 pass
 
         async def sync_time():
-            while config_entry.options.get(CONF_SYNC_TIME) and not spa._stop_flag:
+            while config_entry.options.get(CONF_SYNC_TIME, True) and not spa._stop_flag:
                 try:
                     await spa.set_current_time()
                 except asyncio.CancelledError:
                     break
                 except Exception as e:
                     _LOGGER.error("Error syncing time: %s", e)
-                await asyncio.sleep(86400)
+                await asyncio.sleep(sync_time_interval * 3600)
 
         sync_task = hass.loop.create_task(sync_time())
         entry_data[DATA_SYNC_TIME_TASK] = sync_task
@@ -210,7 +158,9 @@ async def update_listener(hass, config_entry):
 
     # Handle fault log task
     if config_entry.options.get(CONF_FAULT_LOG_ENABLED, False):
-        fault_log_interval = config_entry.options.get(CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL)
+        fault_log_interval = config_entry.options.get(
+            CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL
+        )
         existing_task = entry_data.get(DATA_FAULT_LOG_TASK)
         if existing_task and not existing_task.done():
             existing_task.cancel()
@@ -220,7 +170,10 @@ async def update_listener(hass, config_entry):
                 pass
 
         async def fault_log_task():
-            while config_entry.options.get(CONF_FAULT_LOG_ENABLED, False) and not spa._stop_flag:
+            while (
+                config_entry.options.get(CONF_FAULT_LOG_ENABLED, False)
+                and not spa._stop_flag
+            ):
                 try:
                     await spa.send_fault_log_request()
                 except asyncio.CancelledError:
@@ -267,7 +220,7 @@ class SpaClientDevice(Entity):
     def device_info(self):
         """Return the device information for this entity."""
         return {
-            "identifiers": {(DOMAIN, self._spaclient.get_macaddr().replace(':', ''))},
+            "identifiers": {(DOMAIN, self._spaclient.get_macaddr().replace(":", ""))},
             "model": self._spaclient.get_model_name(),
             "manufacturer": "Balboa Water Group",
             "name": self._device_name,
