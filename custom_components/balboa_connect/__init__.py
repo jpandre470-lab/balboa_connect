@@ -11,13 +11,11 @@ from .const import (
     CONF_FAULT_LOG_ENABLED,
     CONF_FAULT_LOG_INTERVAL,
     DATA_LISTENER,
-    DEFAULT_SCAN_INTERVAL,
     DEFAULT_SYNC_TIME_INTERVAL,
     DEFAULT_SOCKET_TIMEOUT,
     DEFAULT_FAULT_LOG_INTERVAL,
     DOMAIN,
     ICONS,
-    MIN_SCAN_INTERVAL,
     MIN_SYNC_TIME_INTERVAL,
     MAX_SYNC_TIME_INTERVAL,
     MIN_SOCKET_TIMEOUT,
@@ -40,19 +38,6 @@ from homeassistant.const import (
 )
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity import Entity
-
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {
-                vol.Required(CONF_HOST): cv.string,
-                vol.Required(CONF_NAME): cv.string,
-            }
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
-)
 
 
 async def async_setup(hass, base_config):
