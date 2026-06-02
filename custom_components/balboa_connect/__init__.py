@@ -9,14 +9,18 @@ from .const import (
     CONF_SYNC_TIME,
     CONF_FAULT_LOG_ENABLED,
     CONF_FAULT_LOG_INTERVAL,
+    CONF_SOCKET_TIMEOUT,
     DATA_LISTENER,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_FAULT_LOG_INTERVAL,
+    DEFAULT_SOCKET_TIMEOUT,
     DOMAIN,
     ICONS,
     MIN_SCAN_INTERVAL,
     MIN_FAULT_LOG_INTERVAL,
     MAX_FAULT_LOG_INTERVAL,
+    MIN_SOCKET_TIMEOUT,
+    MAX_SOCKET_TIMEOUT,
     SPA,
     SPACLIENT_COMPONENTS,
 )
@@ -46,6 +50,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_SYNC_TIME, default=False): bool,
                 vol.Optional(CONF_FAULT_LOG_ENABLED, default=False): bool,
                 vol.Optional(CONF_FAULT_LOG_INTERVAL, default=DEFAULT_FAULT_LOG_INTERVAL): vol.All(cv.positive_int, vol.Clamp(min=MIN_FAULT_LOG_INTERVAL, max=MAX_FAULT_LOG_INTERVAL)),
+                vol.Optional(CONF_SOCKET_TIMEOUT, default=DEFAULT_SOCKET_TIMEOUT): vol.All(cv.positive_int, vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT)),
             }
         )
     },
@@ -71,7 +76,8 @@ async def async_setup(hass, base_config):
 async def async_setup_entry(hass, config_entry):
     """Set up Balboa Connect from a config entry."""
 
-    spa = spaclient(config_entry.data[CONF_HOST])
+    socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
+    spa = spaclient(config_entry.data[CONF_HOST], socket_timeout=socket_timeout)
     hass.data[DOMAIN][config_entry.entry_id] = {
         SPA: spa, 
         DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
@@ -147,6 +153,28 @@ async def update_listener(hass, config_entry):
 
     entry_data = hass.data[DOMAIN][config_entry.entry_id]
     spa = entry_data.get(SPA)
+    
+    # Handle socket timeout - need to recreate spa client
+    socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
+    if hasattr(spa, 'socket_timeout') and spa.socket_timeout != socket_timeout:
+        _LOGGER.info("Socket timeout changed to %s, recreating spa client", socket_timeout)
+        await spa.stop()
+        spa = spaclient(config_entry.data[CONF_HOST], socket_timeout=socket_timeout)
+        entry_data[SPA] = spa
+        # Re-initialize connection
+        try:
+            connected = await spa.validate_connection()
+            if connected:
+                await spa.send_additional_information_request()
+                await spa.send_configuration_request()
+                await spa.send_fault_log_request()
+                await spa.send_filter_cycles_request()
+                await spa.send_gfci_test_request()
+                await spa.send_information_request()
+                await spa.send_preferences_request()
+                await spa.send_module_identification_request()
+        except Exception as e:
+            _LOGGER.error("Error reinitializing spa with new timeout: %s", e)
     
     # Handle sync time task
     if config_entry.options.get(CONF_SYNC_TIME):
