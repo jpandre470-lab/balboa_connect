@@ -225,29 +225,6 @@ class spaclient:
             await self.send_fault_log_request()
         return connected
 
-    async def keep_alive_call(self):
-        """Keep-alive task with proper stop handling."""
-        _LOGGER.debug("Keep-alive task started")
-        while not self._stop_flag:
-            try:
-                if self.socket_s is None:
-                    # read_all_msg handles fast reconnect; this is a backup
-                    _LOGGER.debug("Keep-alive: socket is None, backup reconnect attempt")
-                    connected = await self._reconnect_and_reinit()
-                    if not connected:
-                        _LOGGER.warning("Keep-alive: reconnection failed, will retry")
-                        await asyncio.sleep(RECONNECT_DELAY)
-                        continue
-                else:
-                    await self.send_fault_log_request()
-            except asyncio.CancelledError:
-                _LOGGER.debug("Keep-alive task cancelled")
-                break
-            except Exception as e:
-                _LOGGER.error("Error in keep_alive_call: %s", e)
-                await self._close_socket()
-            await asyncio.sleep(30)
-        _LOGGER.debug("Keep-alive task stopped")
 
     def compute_checksum(self, length, payload):
         crc = 0xb5
@@ -468,8 +445,6 @@ class spaclient:
                     await self.read_msg_async()
                     await asyncio.sleep(0.1)
                 else:
-                    # Socket is gone — try to reconnect quickly instead of
-                    # waiting up to 30s for keep_alive_call to wake up.
                     now = asyncio.get_event_loop().time()
                     if _next_reconnect_at is None:
                         _next_reconnect_at = now + RECONNECT_DELAY
@@ -1623,3 +1598,4 @@ class spaclient:
         _LOGGER.info("self.gfci_test_loaded = %s", self.gfci_test_loaded)
         _LOGGER.info("self.gfci_test_result = %s", self.gfci_test_result)
         _LOGGER.info("")
+
