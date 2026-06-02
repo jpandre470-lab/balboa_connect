@@ -3,11 +3,16 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 CONF_SYNC_TIME = "sync_time"
+CONF_FAULT_LOG_ENABLED = "fault_log_enabled"
+CONF_FAULT_LOG_INTERVAL = "fault_log_interval"
 DATA_LISTENER = "listener"
 DEFAULT_SCAN_INTERVAL = 1
+DEFAULT_FAULT_LOG_INTERVAL = 6
 DOMAIN = "balboa_connect"
 FILTER_CYCLE_TIMES = ["Begins", "Runs"]
 MIN_SCAN_INTERVAL = 1
+MIN_FAULT_LOG_INTERVAL = 1
+MAX_FAULT_LOG_INTERVAL = 24
 SPA = "spa"
 
 SPACLIENT_COMPONENTS = [
