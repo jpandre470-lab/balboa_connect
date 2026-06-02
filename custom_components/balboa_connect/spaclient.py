@@ -12,19 +12,19 @@ from threading import Lock
 
 # Constants for timeouts and retries
 # 15s timeout: Balboa sends status every ~1s, so 15s only triggers on real outages
-SOCKET_TIMEOUT = 15
 REQUEST_TIMEOUT = 30  # Maximum time to wait for a response
 MAX_RETRIES = 3
 RECONNECT_DELAY = 5
 
 
 class spaclient:
-    def __init__(self, host_ip):
+    def __init__(self, host_ip, socket_timeout=15):
         """ Socket variables """
         self.socket_is_connected = False
         self.socket_l = Lock()
         self.socket_s = None
         self.socket_host_ip = host_ip
+        self.socket_timeout = socket_timeout
         
         """ Task control variables """
         self._stop_flag = False
@@ -158,7 +158,7 @@ class spaclient:
             
         try:
             self.socket_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket_s.settimeout(SOCKET_TIMEOUT)
+            self.socket_s.settimeout(self.socket_timeout)
             self.socket_s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
             
             # Run connect in executor to not block event loop
