@@ -18,7 +18,6 @@ from .const import (
 from .spaclient import spaclient
 
 # Task storage keys
-DATA_KEEP_ALIVE_TASK = "keep_alive_task"
 DATA_READ_MSG_TASK = "read_msg_task"
 DATA_SYNC_TIME_TASK = "sync_time_task"
 from homeassistant.config_entries import SOURCE_IMPORT
@@ -68,7 +67,6 @@ async def async_setup_entry(hass, config_entry):
     hass.data[DOMAIN][config_entry.entry_id] = {
         SPA: spa, 
         DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
-        DATA_KEEP_ALIVE_TASK: None,
         DATA_READ_MSG_TASK: None,
         DATA_SYNC_TIME_TASK: None,
     }
