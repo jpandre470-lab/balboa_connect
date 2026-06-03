@@ -127,9 +127,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=data_schema,
             description_placeholders={
-                "sync_time_interval": "Sync interval in hours (1-24 h)",
-                "socket_timeout": "Socket timeout in seconds (1-3600 s)",
-                "fault_log_interval": "Fault log interval in hours (1-24 h)"
+                CONF_SYNC_TIME_INTERVAL: "Sync interval in hours (1-24 h)",
+                CONF_SOCKET_TIMEOUT: "Socket timeout in seconds (1-3600 s)",
+                CONF_FAULT_LOG_INTERVAL: "Fault log interval in hours (1-24 h)"
             }
         )
 
