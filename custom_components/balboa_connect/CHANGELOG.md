@@ -6,80 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [0.2.7] - 2026-06-02
-
-### Fixed
-- **send_message()** no longer closes socket on error. Previously, socket closure on send errors caused connection instability. Now only sets `socket_is_connected = False` without closing the socket, allowing the connection to be reused.
-
-### Changed
-- Removed `CONF_SCAN_INTERVAL` configuration option (was non-functional - entities update via real-time spa status messages, not polling)
-- Time synchronization enabled by default
-- Added configurable time synchronization interval (1-24 hours, default: 1 hour) with select dropdown
-- Changed all interval options to use select dropdown fields instead of sliders
-
-### Technical Details
-- **spaclient.py**: Removed `self.socket_s.close()` and `self.socket_s = None` from `send_message()` error handling
-- **const.py**: Added `CONF_SYNC_TIME_INTERVAL`, `DEFAULT_SYNC_TIME_INTERVAL`, `MIN_SYNC_TIME_INTERVAL`, `MAX_SYNC_TIME_INTERVAL`
-- **__init__.py**: Updated sync_time task to use configurable interval (`sync_time_interval * 3600`)
-- **config_flow.py**: Added `CONF_SYNC_TIME_INTERVAL` option with select field, changed `CONF_SYNC_TIME` default to `True`
-
----
-
-## [0.2.6] - 2026-06-02
-
-### Fixed
-- **socket_is_connected management**: Now properly based on actual socket connection state rather than message reception.
-
-### Changed
-- Removed `CONF_SCAN_INTERVAL` configuration option (non-functional)
-- Time synchronization enabled by default
-- Added configurable time synchronization interval with select dropdown
-
-### Technical Details
-- **spaclient.py**: Added `self.socket_is_connected = True` in `get_socket()` after successful connection
-- **spaclient.py**: Removed `self.socket_is_connected = True` from `parse_status_update()` (was incorrectly setting flag on message parse)
-- **const.py**: Added time synchronization interval constants
-- **__init__.py**: Updated to use new constants
-- **config_flow.py**: Updated to expose new options
-
----
-
-## [0.2.5] - 2026-06-02
-
-### Changed
-- **Separate ThreadPoolExecutor for send and receive operations**: Prevents blocking between socket operations
-- Removed `CONF_SCAN_INTERVAL` configuration option (non-functional)
-- Time synchronization enabled by default
-- Added configurable time synchronization interval with select dropdown
-
-### Technical Details
-- **spaclient.py**: Replaced single `_executor` with `_send_executor` and `_recv_executor`
-  - `_send_executor` (max_workers=1): Used for socket connection and message sending
-  - `_recv_executor` (max_workers=1): Used for message reading (`_read_msg_sync`)
-- **spaclient.py**: Updated all `run_in_executor` calls to use appropriate executor
-- **spaclient.py**: Updated `stop()` to shutdown both executors
-- **const.py**: Added time synchronization interval constants
-- **__init__.py**: Updated to use new constants
-- **config_flow.py**: Updated to expose new options
-
----
-
 ## [0.2.4] - 2026-06-02
 
 ### Changed
 - **Configurable socket timeout**: Socket timeout is now configurable via integration options (1-3600 seconds)
-- Removed `CONF_SCAN_INTERVAL` configuration option (non-functional)
+- **Added min/max descriptions to option fields**: Each option field now displays its valid range in the description
+- Removed `CONF_SCAN_INTERVAL` configuration option (was non-functional - entities update via real-time spa status messages, not polling)
 - Time synchronization enabled by default
-- Added configurable time synchronization interval with select dropdown
+- Added configurable time synchronization interval (1-24 hours, default: 1 hour) with select dropdown
 
 ### Technical Details
 - **const.py**: Added `CONF_SOCKET_TIMEOUT`, `DEFAULT_SOCKET_TIMEOUT=15`, `MIN_SOCKET_TIMEOUT=1`, `MAX_SOCKET_TIMEOUT=3600`
+- **const.py**: Added interval min/max constants for all configurable intervals
 - **spaclient.py**: Modified `__init__()` to accept `socket_timeout` parameter (default: 15)
 - **spaclient.py**: Removed hardcoded `SOCKET_TIMEOUT` constant, now uses `self.socket_timeout`
 - **spaclient.py**: Updated `get_socket()` to use `self.socket_timeout` for `settimeout()`
 - **__init__.py**: Modified to read `CONF_SOCKET_TIMEOUT` from options and pass to spaclient
 - **__init__.py**: Added socket timeout handling in `update_listener()` to recreate spa client when timeout changes
-- **config_flow.py**: Updated to expose new options
+- **config_flow.py**: Updated to expose new options with min/max descriptions
 
 ---
 
