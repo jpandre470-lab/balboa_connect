@@ -90,25 +90,36 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
-                vol.Optional(CONF_SYNC_TIME, default=True): bool,
+                vol.Optional(
+                    CONF_SYNC_TIME,
+                    default=True,
+                    description="Enable automatic time synchronization with Home Assistant"
+                ): bool,
                 vol.Optional(
                     CONF_SYNC_TIME_INTERVAL,
                     default=self.config_entry.options.get(
                         CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
-                    )
+                    ),
+                    description=f"Sync interval in hours (min: {MIN_SYNC_TIME_INTERVAL}, max: {MAX_SYNC_TIME_INTERVAL})"
                 ): vol.In(SYNC_INTERVAL_OPTIONS),
                 vol.Optional(
                     CONF_SOCKET_TIMEOUT,
                     default=self.config_entry.options.get(
                         CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT
-                    )
+                    ),
+                    description=f"Socket timeout in seconds (min: {MIN_SOCKET_TIMEOUT}, max: {MAX_SOCKET_TIMEOUT})"
                 ): vol.All(cv.positive_int, vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT)),
-                vol.Optional(CONF_FAULT_LOG_ENABLED, default=False): bool,
+                vol.Optional(
+                    CONF_FAULT_LOG_ENABLED,
+                    default=False,
+                    description="Enable periodic fault log requests"
+                ): bool,
                 vol.Optional(
                     CONF_FAULT_LOG_INTERVAL,
                     default=self.config_entry.options.get(
                         CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL
-                    )
+                    ),
+                    description=f"Fault log interval in hours (min: {MIN_FAULT_LOG_INTERVAL}, max: {MAX_FAULT_LOG_INTERVAL})"
                 ): vol.In(FAULT_LOG_INTERVAL_OPTIONS),
             }
         )
