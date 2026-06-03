@@ -100,14 +100,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=self.config_entry.options.get(
                         CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
                     ),
-                    description=f"Sync interval in hours (min: {MIN_SYNC_TIME_INTERVAL}, max: {MAX_SYNC_TIME_INTERVAL})"
+                    description="Sync interval in hours (1-24 h)"
                 ): vol.In(SYNC_INTERVAL_OPTIONS),
                 vol.Optional(
                     CONF_SOCKET_TIMEOUT,
                     default=self.config_entry.options.get(
                         CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT
                     ),
-                    description=f"Socket timeout in seconds (min: {MIN_SOCKET_TIMEOUT}, max: {MAX_SOCKET_TIMEOUT})"
+                    description="Socket timeout in seconds (1-3600 s)"
                 ): vol.All(cv.positive_int, vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT)),
                 vol.Optional(
                     CONF_FAULT_LOG_ENABLED,
@@ -119,7 +119,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=self.config_entry.options.get(
                         CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL
                     ),
-                    description=f"Fault log interval in hours (min: {MIN_FAULT_LOG_INTERVAL}, max: {MAX_FAULT_LOG_INTERVAL})"
+                    description="Fault log interval in hours (1-24 h)"
                 ): vol.In(FAULT_LOG_INTERVAL_OPTIONS),
             }
         )
