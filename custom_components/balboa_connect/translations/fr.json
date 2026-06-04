@@ -19,9 +19,13 @@
     "options": {
         "step": {
             "init": {
+                "title": "Options de balboa_connect",
                 "data": {
-                    "scan_interval": "Fréquence rafraîchissement des entités (secondes)",
-                    "sync_time": "Gardez l'heure de votre contrôleur Balboa BP synchronisée avec Home Assistant"
+                    "sync_time": "Activer la synchronisation automatique de l'heure avec Home Assistant",
+                    "sync_time_interval": "Intervalle de synchronisation de l'heure",
+                    "socket_timeout": "Timeout du socket (secondes)",
+                    "fault_log_enabled": "Activer les demandes périodiques du journal des erreurs",
+                    "fault_log_interval": "Intervalle de lecture du journal des erreurs (heures)"
                 }
             }
         }
