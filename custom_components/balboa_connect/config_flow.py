@@ -93,45 +93,32 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_SYNC_TIME,
                     default=True,
-                    description="Enable automatic time synchronization with Home Assistant"
                 ): bool,
                 vol.Optional(
                     CONF_SYNC_TIME_INTERVAL,
                     default=self.config_entry.options.get(
                         CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
                     ),
-                    description="Sync interval in hours (1-24 h)"
-                ): vol.In(SYNC_INTERVAL_OPTIONS),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
                 vol.Optional(
                     CONF_SOCKET_TIMEOUT,
                     default=self.config_entry.options.get(
                         CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT
                     ),
-                    description="Socket timeout in seconds (1-3600 s)"
-                ): vol.All(cv.positive_int, vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT)),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=3600)),
                 vol.Optional(
                     CONF_FAULT_LOG_ENABLED,
                     default=False,
-                    description="Enable periodic fault log requests"
                 ): bool,
                 vol.Optional(
                     CONF_FAULT_LOG_INTERVAL,
                     default=self.config_entry.options.get(
                         CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL
                     ),
-                    description="Fault log interval in hours (1-24 h)"
-                ): vol.In(FAULT_LOG_INTERVAL_OPTIONS),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
             }
         )
-        return self.async_show_form(
-            step_id="init",
-            data_schema=data_schema,
-            description_placeholders={
-                CONF_SYNC_TIME_INTERVAL: "Sync interval in hours (1-24 h)",
-                CONF_SOCKET_TIMEOUT: "Socket timeout in seconds (1-3600 s)",
-                CONF_FAULT_LOG_INTERVAL: "Fault log interval in hours (1-24 h)"
-            }
-        )
+        return self.async_show_form(step_id="init", data_schema=data_schema)
 
 
 async def validate_input(hass, data):
