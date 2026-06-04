@@ -20,8 +20,11 @@
         "step": {
             "init": {
                 "data": {
-                    "scan_interval": "Entities polling rate (seconds)",
-                    "sync_time": "Keep your Balboa BP controller's time synchronized with Home Assistant"
+                    "sync_time": "Enable automatic time synchronization with Home Assistant",
+                    "sync_time_interval": "Sync interval in hours (1-24 h)",
+                    "socket_timeout": "Socket timeout in seconds (1-3600 s)",
+                    "fault_log_enabled": "Enable periodic fault log requests",
+                    "fault_log_interval": "Fault log interval in hours (1-24 h)"
                 }
             }
         }
