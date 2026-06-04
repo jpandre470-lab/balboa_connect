@@ -99,7 +99,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=self.config_entry.options.get(
                         CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
                     ),
-                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
+                ): vol.In(SYNC_INTERVAL_OPTIONS),
                 vol.Optional(
                     CONF_SOCKET_TIMEOUT,
                     default=self.config_entry.options.get(
@@ -115,7 +115,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=self.config_entry.options.get(
                         CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL
                     ),
-                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=24)),
+                ): vol.In(FAULT_LOG_INTERVAL_OPTIONS),
             }
         )
         return self.async_show_form(step_id="init", data_schema=data_schema)
