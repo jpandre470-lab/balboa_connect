@@ -19,9 +19,13 @@
     "options": {
         "step": {
             "init": {
+                "title": "Balboa Connect alternativer",
                 "data": {
-                    "scan_interval": "Avstemningsfrekvens for verdier (sekunder)",
-                    "sync_time": "Hold Balboa BP kontrollerens tid synkronisert med Home Assistant"
+                    "sync_time": "Aktiver automatisk tidssynkronisering med Home Assistant",
+                    "sync_time_interval": "Tidssynkroniseringsintervall",
+                    "socket_timeout": "Socket timeout (sekunder)",
+                    "fault_log_enabled": "Aktiver periodiske feilloggforespørsler",
+                    "fault_log_interval": "Feilloggintervall (timer)"
                 }
             }
         }
