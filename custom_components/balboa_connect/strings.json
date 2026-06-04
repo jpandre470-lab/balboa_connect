@@ -19,13 +19,13 @@
     "options": {
         "step": {
             "init": {
-                "title": "Options de balboa_connect",
+                "title": "Balboa Connect Options",
                 "data": {
                     "sync_time": "Enable automatic time synchronization with Home Assistant",
-                    "sync_time_interval": "Intervalle de synchronisation de l'heure",
-                    "socket_timeout": "Timeout du socket (secondes)",
+                    "sync_time_interval": "Time synchronization interval",
+                    "socket_timeout": "Socket timeout (seconds)",
                     "fault_log_enabled": "Enable periodic fault log requests",
-                    "fault_log_interval": "Intervalle de lecture du journal des erreurs (heures)"
+                    "fault_log_interval": "Fault log interval (hours)"
                 }
             }
         }
