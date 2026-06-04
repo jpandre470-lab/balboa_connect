@@ -96,12 +96,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): bool,
                 vol.Optional(
                     CONF_SYNC_TIME_INTERVAL,
+                    description={"suggested_value": self.config_entry.options.get(
+                        CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
+                    )},
                     default=self.config_entry.options.get(
                         CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
                     ),
                 ): vol.In(SYNC_INTERVAL_OPTIONS),
                 vol.Optional(
                     CONF_SOCKET_TIMEOUT,
+                    description={"suggested_value": self.config_entry.options.get(
+                        CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT
+                    )},
                     default=self.config_entry.options.get(
                         CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT
                     ),
@@ -112,13 +118,24 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): bool,
                 vol.Optional(
                     CONF_FAULT_LOG_INTERVAL,
+                    description={"suggested_value": self.config_entry.options.get(
+                        CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL
+                    )},
                     default=self.config_entry.options.get(
                         CONF_FAULT_LOG_INTERVAL, DEFAULT_FAULT_LOG_INTERVAL
                     ),
                 ): vol.In(FAULT_LOG_INTERVAL_OPTIONS),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=data_schema)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=data_schema,
+            description_placeholders={
+                "sync_time_interval_help": "Intervalle de synchronisation de l'heure (heures)",
+                "socket_timeout_help": "Timeout du socket en secondes",
+                "fault_log_interval_help": "Intervalle de lecture du journal des erreurs (heures)",
+            },
+        )
 
 
 async def validate_input(hass, data):
