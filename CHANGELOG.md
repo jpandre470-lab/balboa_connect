@@ -6,14 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [0.2.4] - 2026-06-02
+## [0.2.4] - 2026-06-05
 
 ### Changed
 - **Configurable socket timeout**: Socket timeout is now configurable via integration options (1-3600 seconds)
 - **Added min/max descriptions to option fields**: Each option field now displays its valid range in the description
+- **Improved UI for integration options**: Added descriptive titles and helpful explanations for each configuration field
 - Removed CONF_SCAN_INTERVAL configuration option (was non-functional - entities update via real-time spa status messages, not polling)
 - Time synchronization enabled by default
 - Added configurable time synchronization interval (1-24 hours, default: 1 hour) with select dropdown
+
+### Added
+- **Internationalization (i18n) support**: Complete translation support for multiple languages
+  - English (en) - Default language with all UI strings and options
+  - French (fr) - Full French translation of options and titles
+  - Norwegian Bokmål (nb) - Full Norwegian translation of options and titles
+- **Improved configuration flow UI**: Added explanatory text for:
+  - Time synchronization interval explanation: "Intervalle de synchronisation de l'heure"
+  - Socket timeout explanation: "Timeout du socket (secondes)"
+  - Fault log interval explanation: "Intervalle de lecture du journal des erreurs (heures)"
 
 ### Technical Details
 - **const.py**: Added CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT=15, MIN_SOCKET_TIMEOUT=1, MAX_SOCKET_TIMEOUT=3600
@@ -23,7 +34,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **spaclient.py**: Updated get_socket() to use self.socket_timeout for settimeout()
 - **__init__.py**: Modified to read CONF_SOCKET_TIMEOUT from options and pass to spaclient
 - **__init__.py**: Added socket timeout handling in update_listener() to recreate spa client when timeout changes
-- **config_flow.py**: Updated to expose new options with min/max descriptions
+- **config_flow.py**: Updated to expose new options with descriptions and improved UI
+- **strings.json**: Centralized English strings (default language)
+- **translations/en.json**: English translation file with all options
+- **translations/fr.json**: French translation file with all options and titles
+- **translations/nb.json**: Norwegian Bokmål translation file with all options and titles
 
 ---
 
