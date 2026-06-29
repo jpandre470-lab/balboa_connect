@@ -1,11 +1,11 @@
-"""Const file for Spa Client."""
+"""Const file for Balboa Connect."""
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 CONF_SYNC_TIME = "sync_time"
 DATA_LISTENER = "listener"
 DEFAULT_SCAN_INTERVAL = 1
-DOMAIN = "smartspaclient"
+DOMAIN = "balboa_connect"
 FILTER_CYCLE_TIMES = ["Begins", "Runs"]
 MIN_SCAN_INTERVAL = 1
 SPA = "spa"
