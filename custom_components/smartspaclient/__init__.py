@@ -1,4 +1,4 @@
-"""Init file for Spa Client integration."""
+"""Init file for Balboa Connect integration."""
 import asyncio
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -47,7 +47,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 
 async def async_setup(hass, base_config):
-    """Configure the Spa Client component using flow only."""
+    """Configure the Balboa Connect component using flow only."""
 
     hass.data.setdefault(DOMAIN, {})
 
@@ -62,7 +62,7 @@ async def async_setup(hass, base_config):
 
 
 async def async_setup_entry(hass, config_entry):
-    """Set up Spa Client from a config entry."""
+    """Set up Balboa Connect from a config entry."""
 
     spa = spaclient(config_entry.data[CONF_HOST])
     hass.data[DOMAIN][config_entry.entry_id] = {
@@ -137,7 +137,7 @@ async def async_unload_entry(hass, config_entry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(config_entry, SPACLIENT_COMPONENTS):
         hass.data[DOMAIN].pop(config_entry.entry_id)
     
-    _LOGGER.info("Spa client unloaded successfully")
+    _LOGGER.info("Balboa Connect unloaded successfully")
     return unload_ok
 
 
@@ -172,10 +172,10 @@ async def update_listener(hass, config_entry):
 
 
 class SpaClientDevice(Entity):
-    """Representation of a Spa Client device."""
+    """Representation of a Balboa Connect device."""
 
     def __init__(self, spaclient, config_entry):
-        """Initialize the Spa Client device."""
+        """Initialize the Balboa Connect device."""
         self._device_name = config_entry.data[CONF_NAME]
         self._spaclient = spaclient
 
@@ -190,7 +190,7 @@ class SpaClientDevice(Entity):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return f"{self._spaclient.get_macaddr().replace(':', '')}#spa_client"
+        return f"{self._spaclient.get_macaddr().replace(':', '')}#balboa_connect"
 
     @property
     def device_info(self):
