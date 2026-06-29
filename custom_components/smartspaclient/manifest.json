@@ -1,10 +1,12 @@
 {
-    "domain": "smartspaclient",
-    "name": "SmartSpa Client",
-    "codeowners": ["@jozefnad"],
-    "config_flow": true,
-    "documentation": "https://github.com/jozefnad/homeassistant-smartspaclient",
-    "iot_class": "local_push",
-    "issue_tracker": "https://github.com/jozefnad/homeassistant-smartspaclient/issues",
-    "version": "2.0.2"
+  "domain": "balboa_connect",
+  "name": "Balboa Connect",
+  "codeowners": [
+    "@jpandre470-lab"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/jpandre470-lab/balboa_connect",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/jpandre470-lab/balboa_connect/issues",
+  "version": "0.1.0"
 }
