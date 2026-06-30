@@ -1,4 +1,8 @@
 {
   "name": "Balboa Connect",
-  "render_readme": true
+  "render_readme": true,
+  "categories": [
+    "Integration",
+    "Automation"
+  ]
 }
