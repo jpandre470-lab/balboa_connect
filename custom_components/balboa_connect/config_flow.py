@@ -1,4 +1,4 @@
-"""Config flow for Spa Client integration."""
+"""Config flow for Balboa Connect integration."""
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
@@ -23,20 +23,20 @@ from homeassistant.core import callback
 DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HOST): str,
-        vol.Required(CONF_NAME, default="Spa Client"): str,
+        vol.Required(CONF_NAME, default="Balboa Connect"): str,
     }
 )
 
 
 @callback
 def configured_instances(hass):
-    """Return a set of configured Spa Client instances."""
+    """Return a set of configured Balboa Connect instances."""
 
     return {entry.title for entry in hass.config_entries.async_entries(DOMAIN)}
 
 
 class SpaClientConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Spa Client."""
+    """Handle a config flow for Balboa Connect."""
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
@@ -70,7 +70,7 @@ class SpaClientConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle a option flow for Spa Client."""
+    """Handle a option flow for Balboa Connect."""
 
     async def async_step_init(self, user_input=None):
         """Handle options flow."""

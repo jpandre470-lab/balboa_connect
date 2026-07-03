@@ -1,5 +1,8 @@
 {
-    "name": "SmartSpa Client",
-    "render_readme": true
+  "name": "Balboa Connect",
+  "render_readme": true,
+  "categories": [
+    "Integration",
+    "Automation"
+  ]
 }
-

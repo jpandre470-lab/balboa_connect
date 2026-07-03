@@ -1,4 +1,4 @@
-"""Support for Spa Client binary sensors."""
+"""Support for Balboa Connect binary sensors."""
 # Import the device class from the component that you want to support
 from . import SpaClientDevice
 from .const import _LOGGER, DOMAIN, ICONS, SPA
@@ -9,7 +9,7 @@ SCAN_INTERVAL = timedelta(seconds=1)
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up the Spa Client binary sensors."""
+    """Set up the Balboa Connect binary sensors."""
 
     spaclient = hass.data[DOMAIN][config_entry.entry_id][SPA]
     entities = []

@@ -1,4 +1,4 @@
-"""Support for Spa Client sensors."""
+"""Support for Balboa Connect sensors."""
 # Import the device class from the component that you want to support
 from . import SpaClientDevice
 from .const import _LOGGER, DOMAIN, ICONS, FAULT_MSG, SPA

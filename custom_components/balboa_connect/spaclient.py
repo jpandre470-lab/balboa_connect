@@ -1,4 +1,4 @@
-"""Spa Client integration."""
+"""Balboa Connect integration."""
 import asyncio
 import concurrent.futures
 import homeassistant.util.dt as dt_util
