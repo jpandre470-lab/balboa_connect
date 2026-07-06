@@ -1,5 +1,5 @@
 {
   "name": "Balboa Connect",
   "domain": "balboa_connect",
-  "categories": "Integration"
+  "categories": ["integration"]
 }
