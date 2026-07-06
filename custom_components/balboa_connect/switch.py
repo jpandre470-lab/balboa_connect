@@ -31,7 +31,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             entities.append(SpaAux(i + 1, spaclient, config_entry))
 
     entities.append(EnableFilterCycle2(spaclient, config_entry))
-    entities.append(HeatMode(spaclient, config_entry))
     entities.append(HoldMode(spaclient, config_entry))
     entities.append(StandbyMode(spaclient, config_entry))
     entities.append(TempRange(spaclient, config_entry))
@@ -40,7 +39,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entities.append(M8AI(spaclient, config_entry))
     entities.append(PanelLock(spaclient, config_entry))
     entities.append(SettingsLock(spaclient, config_entry))
-
 
     async_add_entities(entities, True)
 
@@ -275,56 +273,6 @@ class EnableFilterCycle2(SpaClientDevice, SwitchEntity):
     async def async_turn_off(self, **kwargs):
         """Send the off command."""
         self._spaclient.set_filter2_enabled(0)
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self._spaclient.get_gateway_status()
-
-
-class HeatMode(SpaClientDevice, SwitchEntity):
-    """Representation of a Heat Mode switch."""
-
-    def __init__(self, spaclient, config_entry):
-        """Initialise the switch."""
-        super().__init__(spaclient, config_entry)
-        self._spaclient = spaclient
-        self._icon = ICONS.get('Heat Mode')
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID."""
-        return f"{self._spaclient.get_macaddr().replace(':', '')}#heat_mode"
-
-    @property
-    def name(self):
-        """Return the name of the device."""
-        return 'Heat Mode'
-
-    @property
-    def icon(self):
-        """Return the icon of the device."""
-        return self._icon
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes of the device."""
-        attrs = {}
-        attrs["Heat Mode"] = self._spaclient.get_heat_mode()
-        return attrs
-
-    @property
-    def is_on(self):
-        """Get whether the switch is in on state."""
-        return self._spaclient.get_heat_mode() != "Rest"
-
-    async def async_turn_on(self, **kwargs):
-        """Send the on command."""
-        self._spaclient.set_heat_mode("Ready")
-
-    async def async_turn_off(self, **kwargs):
-        """Send the off command."""
-        self._spaclient.set_heat_mode("Rest")
 
     @property
     def available(self) -> bool:
