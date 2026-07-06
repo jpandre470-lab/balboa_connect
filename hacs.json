@@ -1,8 +1,5 @@
 {
   "name": "Balboa Connect",
-  "render_readme": true,
-  "categories": [
-    "Integration",
-    "Automation"
-  ]
+  "domain": "balboa_connect",
+  "categories": "Integration"
 }
