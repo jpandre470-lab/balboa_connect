@@ -9,7 +9,20 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 SCAN_INTERVAL = timedelta(seconds=1)
 
-SUPPORT_HVAC = [HVACMode.HEAT, HVACMode.OFF]
+SUPPORT_HVAC = [HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+
+# Mapping between spa heat modes and HVAC modes
+HEAT_MODE_TO_HVAC = {
+    "Ready": HVACMode.HEAT,
+    "Rest": HVACMode.COOL,
+    "Ready in Rest": HVACMode.HEAT_COOL
+}
+
+HVAC_TO_HEAT_MODE = {
+    HVACMode.HEAT: "Ready",
+    HVACMode.COOL: "Rest",
+    HVACMode.HEAT_COOL: "Ready in Rest"
+}
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -50,14 +63,14 @@ class SpaThermostat(SpaClientDevice, ClimateEntity):
 
     @property
     def hvac_mode(self):
-        """Return current HVAC mode based on standby mode.
+        """Return current HVAC mode based on heat mode.
         
-        Standby mode ON = heating disabled (OFF)
-        Standby mode OFF = heating enabled (HEAT)
+        Ready = HEAT (active heating with normal range)
+        Rest = COOL (heating with lower temperature range)
+        Ready in Rest = HEAT_COOL (auto mode)
         """
-        if self._spaclient.get_standby_mode():
-            return HVACMode.OFF
-        return HVACMode.HEAT
+        heat_mode = self._spaclient.get_heat_mode()
+        return HEAT_MODE_TO_HVAC.get(heat_mode, HVACMode.OFF)
 
     @property
     def hvac_action(self):
@@ -84,7 +97,7 @@ class SpaThermostat(SpaClientDevice, ClimateEntity):
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+        return ClimateEntityFeature.TARGET_TEMPERATURE
 
     @property
     def current_temperature(self):
@@ -121,27 +134,15 @@ class SpaThermostat(SpaClientDevice, ClimateEntity):
         await self._spaclient.set_temperature(temperature)
 
     async def async_set_hvac_mode(self, hvac_mode):
-        """Set new target HVAC mode via standby mode.
+        """Set new target HVAC mode via heat mode.
         
-        OFF = enable standby mode (disables heating, pumps etc still work)
-        HEAT = disable standby mode (heating enabled)
+        HEAT = Ready (active heating with normal range)
+        COOL = Rest (heating with lower temperature range)
+        HEAT_COOL = Ready in Rest (auto mode)
         """
-        if hvac_mode == HVACMode.HEAT:
-            if self._spaclient.get_standby_mode():
-                self._spaclient.set_standby_mode()  # Toggle off
-        elif hvac_mode == HVACMode.OFF:
-            if not self._spaclient.get_standby_mode():
-                self._spaclient.set_standby_mode()  # Toggle on
-
-    async def async_turn_on(self):
-        """Turn on the spa (disable standby mode)."""
-        if self._spaclient.get_standby_mode():
-            self._spaclient.set_standby_mode()
-
-    async def async_turn_off(self):
-        """Turn off the spa (enable standby mode)."""
-        if not self._spaclient.get_standby_mode():
-            self._spaclient.set_standby_mode()
+        if hvac_mode in HVAC_TO_HEAT_MODE:
+            heat_mode = HVAC_TO_HEAT_MODE[hvac_mode]
+            self._spaclient.set_heat_mode(heat_mode)
 
     @property
     def min_temp(self):
@@ -176,7 +177,6 @@ class SpaThermostat(SpaClientDevice, ClimateEntity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         attrs = {}
-        attrs["Heat Mode"] = self._spaclient.get_heat_mode()
         attrs["Heating State"] = self._spaclient.get_heating_state()
         attrs["Standby Mode"] = "On" if self._spaclient.get_standby_mode() else "Off"
         attrs["Temperature Range"] = self._spaclient.get_temp_range()
