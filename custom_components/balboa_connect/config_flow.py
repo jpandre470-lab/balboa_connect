@@ -6,9 +6,15 @@ import voluptuous as vol
 from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
+    CONF_KEEPALIVE_ENABLED,
+    CONF_KEEPALIVE_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_KEEPALIVE_ENABLED,
+    DEFAULT_KEEPALIVE_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    MIN_KEEPALIVE_INTERVAL,
+    MAX_KEEPALIVE_INTERVAL,
 )
 from .spaclient import spaclient
 from homeassistant import config_entries, core, exceptions
@@ -79,8 +85,31 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
-                vol.Optional(CONF_SCAN_INTERVAL, default=self.config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
-                vol.Optional(CONF_SYNC_TIME, default=self.config_entry.options.get(CONF_SYNC_TIME, False),): bool,
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                    ),
+                ): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
+                vol.Optional(
+                    CONF_SYNC_TIME,
+                    default=self.config_entry.options.get(CONF_SYNC_TIME, False),
+                ): bool,
+                vol.Optional(
+                    CONF_KEEPALIVE_ENABLED,
+                    default=self.config_entry.options.get(
+                        CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED
+                    ),
+                ): bool,
+                vol.Optional(
+                    CONF_KEEPALIVE_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL
+                    ),
+                ): vol.All(
+                    cv.positive_int,
+                    vol.Clamp(min=MIN_KEEPALIVE_INTERVAL, max=MAX_KEEPALIVE_INTERVAL),
+                ),
             }
         )
         return self.async_show_form(step_id="init", data_schema=data_schema)
@@ -95,10 +124,10 @@ async def validate_input(hass, data):
 
     spa = spaclient(data[CONF_HOST])
 
-    connected = await spa.validate_connection()                          #To switch to development mode, comment out this line
+    connected = await spa.validate_connection()  # To switch to development mode, comment out this line
 
-    if not connected:                                                    #To switch to development mode, comment out this line
-        raise CannotConnect                                              #To switch to development mode, comment out this line
+    if not connected:  # To switch to development mode, comment out this line
+        raise CannotConnect  # To switch to development mode, comment out this line
 
 
 class CannotConnect(exceptions.HomeAssistantError):
