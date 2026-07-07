@@ -3,11 +3,17 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 CONF_SYNC_TIME = "sync_time"
+CONF_KEEPALIVE_ENABLED = "keepalive_enabled"
+CONF_KEEPALIVE_INTERVAL = "keepalive_interval"
 DATA_LISTENER = "listener"
 DEFAULT_SCAN_INTERVAL = 1
+DEFAULT_KEEPALIVE_ENABLED = True
+DEFAULT_KEEPALIVE_INTERVAL = 30
 DOMAIN = "balboa_connect"
 FILTER_CYCLE_TIMES = ["Begins", "Runs"]
 MIN_SCAN_INTERVAL = 1
+MIN_KEEPALIVE_INTERVAL = 1
+MAX_KEEPALIVE_INTERVAL = 3600
 SPA = "spa"
 
 SPACLIENT_COMPONENTS = [

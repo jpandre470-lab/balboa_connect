@@ -19,7 +19,7 @@ RECONNECT_DELAY = 5
 
 
 class spaclient:
-    def __init__(self, host_ip):
+    def __init__(self, host_ip, keepalive_enabled=True, keepalive_interval=30):
         """ Socket variables """
         self.socket_is_connected = False
         self.socket_l = Lock()
@@ -30,6 +30,10 @@ class spaclient:
         self._stop_flag = False
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="spa_socket")
         self._loop = None
+
+        """ Keep-alive configuration """
+        self.keepalive_enabled = keepalive_enabled
+        self.keepalive_interval = keepalive_interval
 
         """ Status update variable """
         self.status_chunk_array = []
@@ -226,8 +230,14 @@ class spaclient:
         return connected
 
     async def keep_alive_call(self):
-        """Keep-alive task with proper stop handling."""
-        _LOGGER.debug("Keep-alive task started")
+        """Keep-alive task with proper stop handling.
+        Uses configurable interval and dedicated keep-alive frame.
+        """
+        if not self.keepalive_enabled:
+            _LOGGER.debug("Keep-alive is disabled")
+            return
+        
+        _LOGGER.debug("Keep-alive task started with interval %s", self.keepalive_interval)
         while not self._stop_flag:
             try:
                 if self.socket_s is None:
@@ -239,14 +249,14 @@ class spaclient:
                         await asyncio.sleep(RECONNECT_DELAY)
                         continue
                 else:
-                    await self.send_fault_log_request()
+                    await self.send_keepalive()
             except asyncio.CancelledError:
                 _LOGGER.debug("Keep-alive task cancelled")
                 break
             except Exception as e:
                 _LOGGER.error("Error in keep_alive_call: %s", e)
                 await self._close_socket()
-            await asyncio.sleep(30)
+            await asyncio.sleep(self.keepalive_interval)
         _LOGGER.debug("Keep-alive task stopped")
 
     def compute_checksum(self, length, payload):
@@ -1170,6 +1180,15 @@ class spaclient:
         if not await self._send_message_async(b'\x0a\xbf\x22', b'\x20' + b'\x00' + b'\x00'):
             return False
         # Fault log is requested repeatedly, so don't wait for it
+        return True
+
+    async def send_keepalive(self):
+        """Send keep-alive ping to prevent module sleep.
+        Uses the recommended frame: \x0a\xbf\x00\x00\x01
+        """
+        keepalive_frame = b'\x0a\xbf\x00\x00\x01'
+        if not await self._send_message_async(keepalive_frame, b''):
+            return False
         return True
 
     def send_filter_cycles_config(self):

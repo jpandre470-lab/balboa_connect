@@ -164,6 +164,11 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 
 ## Version History
 
+### v0.2.0 (In Development)
+- **Objective:** Stabilize connection handling
+- Improvements to connection reliability and error recovery
+- Enhanced reconnection logic for unstable networks
+
 ### v0.1.1
 - Added HEAT, COOL, HEAT_COOL mode support to Spa Thermostat climate entity
 - Added Heat Mode select entity (Ready, Rest, Ready in Rest)

@@ -5,6 +5,10 @@ import voluptuous as vol
 
 # Import the device class from the component that you want to support
 from .const import (
+    CONF_KEEPALIVE_ENABLED,
+    CONF_KEEPALIVE_INTERVAL,
+    DEFAULT_KEEPALIVE_ENABLED,
+    DEFAULT_KEEPALIVE_INTERVAL,
     _LOGGER,
     CONF_SYNC_TIME,
     DATA_LISTENER,
@@ -64,7 +68,9 @@ async def async_setup(hass, base_config):
 async def async_setup_entry(hass, config_entry):
     """Set up Balboa Connect from a config entry."""
 
-    spa = spaclient(config_entry.data[CONF_HOST])
+    keepalive_enabled = config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED)
+    keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
+    spa = spaclient(config_entry.data[CONF_HOST], keepalive_enabled, keepalive_interval)
     hass.data[DOMAIN][config_entry.entry_id] = {
         SPA: spa, 
         DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
