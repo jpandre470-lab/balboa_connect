@@ -5,6 +5,8 @@ import voluptuous as vol
 
 # Import the device class from the component that you want to support
 from .const import (
+    CONF_SOCKET_TIMEOUT,
+    DEFAULT_SOCKET_TIMEOUT,
     CONF_KEEPALIVE_ENABLED,
     CONF_KEEPALIVE_INTERVAL,
     DEFAULT_KEEPALIVE_ENABLED,

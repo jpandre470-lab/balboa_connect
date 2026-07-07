@@ -19,7 +19,7 @@ RECONNECT_DELAY = 5
 
 
 class spaclient:
-    def __init__(self, host_ip, keepalive_enabled=True, keepalive_interval=30):
+    def __init__(self, host_ip, keepalive_enabled=True, keepalive_interval=30, socket_timeout=30):
         """ Socket variables """
         self.socket_is_connected = False
         self.socket_l = Lock()
@@ -34,6 +34,8 @@ class spaclient:
         """ Keep-alive configuration """
         self.keepalive_enabled = keepalive_enabled
         self.keepalive_interval = keepalive_interval
+        """ Socket timeout configuration """
+        self.socket_timeout = socket_timeout
 
         """ Status update variable """
         self.status_chunk_array = []
@@ -162,7 +164,7 @@ class spaclient:
             
         try:
             self.socket_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket_s.settimeout(SOCKET_TIMEOUT)
+            self.socket_s.settimeout(self.socket_timeout)
             self.socket_s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
             
             # Run connect in executor to not block event loop

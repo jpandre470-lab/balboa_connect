@@ -8,13 +8,17 @@ from .const import (
     CONF_SYNC_TIME,
     CONF_KEEPALIVE_ENABLED,
     CONF_KEEPALIVE_INTERVAL,
+    CONF_SOCKET_TIMEOUT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_KEEPALIVE_ENABLED,
     DEFAULT_KEEPALIVE_INTERVAL,
+    DEFAULT_SOCKET_TIMEOUT,
     DOMAIN,
     MIN_SCAN_INTERVAL,
     MIN_KEEPALIVE_INTERVAL,
     MAX_KEEPALIVE_INTERVAL,
+    MIN_SOCKET_TIMEOUT,
+    MAX_SOCKET_TIMEOUT,
 )
 from .spaclient import spaclient
 from homeassistant import config_entries, core, exceptions
@@ -109,6 +113,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): vol.All(
                     cv.positive_int,
                     vol.Clamp(min=MIN_KEEPALIVE_INTERVAL, max=MAX_KEEPALIVE_INTERVAL),
+                ),
+                vol.Optional(
+                    CONF_SOCKET_TIMEOUT,
+                    default=self.config_entry.options.get(
+                        CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT
+                    ),
+                ): vol.All(
+                    cv.positive_int,
+                    vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT),
                 ),
             }
         )

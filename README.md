@@ -164,10 +164,16 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 
 ## Version History
 
-### v0.2.0 (In Development)
+### v0.2.1 (In Development)
+- Added configurable socket timeout (5-3600s, default: 30s) to handle slow networks
+- Improved connection stability with adjustable timeout settings
+
+### v0.2.0
 - **Objective:** Stabilize connection handling
-- Improvements to connection reliability and error recovery
-- Enhanced reconnection logic for unstable networks
+- Added configurable keep-alive functionality to prevent module sleep
+- Uses recommended frame: `\x0a\xbf\x00\x00\x01`
+- Keep-alive can be enabled/disabled via integration options
+- Keep-alive interval configurable from 1 to 3600 seconds (1s to 1h)
 
 ### v0.1.1
 - Added HEAT, COOL, HEAT_COOL mode support to Spa Thermostat climate entity
