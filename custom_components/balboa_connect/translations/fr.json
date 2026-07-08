@@ -21,7 +21,11 @@
             "init": {
                 "data": {
                     "scan_interval": "Fr\u00e9quence rafra\u00eechissement des entit\u00e9s (secondes)",
-                    "sync_time": "Gardez l'heure de votre contr\u00f4leur Balboa BP synchronis\u00e9e avec Home Assistant"
+                    "sync_time": "Gardez l'heure de votre contr\u00f4leur Balboa BP synchronis\u00e9e avec Home Assistant",
+                    "keepalive_enabled": "Activer le keep-alive (g\u00e9n\u00e9ralement inutile, le spa envoie d\u00e9j\u00e0 ses statuts spontan\u00e9ment)",
+                    "keepalive_interval": "Intervalle du keep-alive (secondes)",
+                    "keepalive_frame_type": "Type de trame keep-alive : \"existing_client_request\" (d\u00e9faut, obtient une vraie r\u00e9ponse du module Wi-Fi) ou \"minimal\" (trame silencieuse, sans r\u00e9ponse)",
+                    "socket_timeout": "D\u00e9lai d'expiration du socket (secondes)"
                 }
             }
         }

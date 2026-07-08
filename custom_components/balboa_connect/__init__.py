@@ -10,8 +10,10 @@ from .const import (
     DEFAULT_SOCKET_TIMEOUT,
     CONF_KEEPALIVE_ENABLED,
     CONF_KEEPALIVE_INTERVAL,
+    CONF_KEEPALIVE_FRAME_TYPE,
     DEFAULT_KEEPALIVE_ENABLED,
     DEFAULT_KEEPALIVE_INTERVAL,
+    DEFAULT_KEEPALIVE_FRAME_TYPE,
     _LOGGER,
     CONF_SYNC_TIME,
     DATA_LISTENER,
@@ -73,7 +75,13 @@ async def async_setup_entry(hass, config_entry):
 
     keepalive_enabled = config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED)
     keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
-    spa = spaclient(config_entry.data[CONF_HOST], keepalive_enabled, keepalive_interval)
+    keepalive_frame_type = config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE)
+    spa = spaclient(
+        config_entry.data[CONF_HOST],
+        keepalive_enabled,
+        keepalive_interval,
+        keepalive_frame_type=keepalive_frame_type,
+    )
 
     # Attach logging wrappers to spa send functions so we can capture raw frames without editing spaclient.py
     try:

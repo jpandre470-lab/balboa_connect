@@ -5,7 +5,12 @@ import homeassistant.util.dt as dt_util
 import socket
 
 # Import the device class from the component that you want to support
-from .const import _LOGGER
+from .const import (
+    _LOGGER,
+    DEFAULT_KEEPALIVE_FRAME_TYPE,
+    KEEPALIVE_FRAME_MINIMAL,
+    KEEPALIVE_FRAME_EXISTING_CLIENT,
+)
 from homeassistant.const import UnitOfTemperature
 from homeassistant.util.unit_conversion import TemperatureConverter
 from threading import Lock
@@ -19,7 +24,14 @@ RECONNECT_DELAY = 5
 
 
 class spaclient:
-    def __init__(self, host_ip, keepalive_enabled=True, keepalive_interval=30, socket_timeout=30):
+    def __init__(
+        self,
+        host_ip,
+        keepalive_enabled=True,
+        keepalive_interval=30,
+        socket_timeout=30,
+        keepalive_frame_type=DEFAULT_KEEPALIVE_FRAME_TYPE,
+    ):
         """ Socket variables """
         self.socket_is_connected = False
         self.socket_l = Lock()
@@ -34,6 +46,7 @@ class spaclient:
         """ Keep-alive configuration """
         self.keepalive_enabled = keepalive_enabled
         self.keepalive_interval = keepalive_interval
+        self.keepalive_frame_type = keepalive_frame_type
         """ Socket timeout configuration """
         self.socket_timeout = socket_timeout
 
@@ -1185,10 +1198,19 @@ class spaclient:
         return True
 
     async def send_keepalive(self):
-        """Send keep-alive ping to prevent module sleep.
-        Uses the recommended frame: \x0a\xbf\x00\x00\x01
+        """Send a keep-alive ping to prevent module sleep.
+
+        Two frame types are supported, selectable via options:
+        - "existing_client_request" (default): \x0a\xbf\x04, which makes the
+          WiFi module reply with a Configuration Response (0x94). This gives
+          a real proof of life for the connection.
+        - "minimal": the bare \x0a\xbf\x00\x00\x01 frame, which the module
+          accepts silently without generating any response.
         """
-        keepalive_frame = b'\x0a\xbf\x00\x00\x01'
+        if self.keepalive_frame_type == KEEPALIVE_FRAME_MINIMAL:
+            keepalive_frame = b'\x0a\xbf\x00\x00\x01'
+        else:
+            keepalive_frame = b'\x0a\xbf\x04'
         if not await self._send_message_async(keepalive_frame, b''):
             return False
         return True

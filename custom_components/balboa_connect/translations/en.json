@@ -21,7 +21,11 @@
             "init": {
                 "data": {
                     "scan_interval": "Entities polling rate (seconds)",
-                    "sync_time": "Keep your Balboa BP controller's time synchronized with Home Assistant"
+                    "sync_time": "Keep your Balboa BP controller's time synchronized with Home Assistant",
+                    "keepalive_enabled": "Enable keep-alive (usually not needed, the spa already pushes status updates on its own)",
+                    "keepalive_interval": "Keep-alive interval (seconds)",
+                    "keepalive_frame_type": "Keep-alive frame type: \"existing_client_request\" (default, gets a real reply from the WiFi module) or \"minimal\" (silent frame, no reply)",
+                    "socket_timeout": "Socket timeout (seconds)"
                 }
             }
         }

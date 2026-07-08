@@ -5,12 +5,25 @@ _LOGGER = logging.getLogger(__name__)
 CONF_SYNC_TIME = "sync_time"
 CONF_KEEPALIVE_ENABLED = "keepalive_enabled"
 CONF_KEEPALIVE_INTERVAL = "keepalive_interval"
+CONF_KEEPALIVE_FRAME_TYPE = "keepalive_frame_type"
 CONF_SOCKET_TIMEOUT = "socket_timeout"
 DATA_LISTENER = "listener"
 DEFAULT_SCAN_INTERVAL = 1
-DEFAULT_KEEPALIVE_ENABLED = True
+# Keep-alive is opt-in: the spa already pushes status updates on its own,
+# so the integration stays passive on the connection unless the user
+# explicitly enables an active keep-alive.
+DEFAULT_KEEPALIVE_ENABLED = False
 DEFAULT_KEEPALIVE_INTERVAL = 30
 DEFAULT_SOCKET_TIMEOUT = 30
+
+# Keep-alive frame types
+# - "minimal": the bare \x0a\xbf\x00\x00\x01 frame, no response expected from the module.
+# - "existing_client_request": \x0a\xbf\x04 (Existing Client Request), which makes the
+#   WiFi module reply with a Configuration Response (0x94) — a real proof of life.
+KEEPALIVE_FRAME_MINIMAL = "minimal"
+KEEPALIVE_FRAME_EXISTING_CLIENT = "existing_client_request"
+KEEPALIVE_FRAME_TYPES = [KEEPALIVE_FRAME_EXISTING_CLIENT, KEEPALIVE_FRAME_MINIMAL]
+DEFAULT_KEEPALIVE_FRAME_TYPE = KEEPALIVE_FRAME_EXISTING_CLIENT
 DOMAIN = "balboa_connect"
 FILTER_CYCLE_TIMES = ["Begins", "Runs"]
 MIN_SCAN_INTERVAL = 1

@@ -164,6 +164,14 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 
 ## Version History
 
+### v0.2.2 (In Development)
+- **Objective:** Make the integration as passive as possible on the connection to improve stability
+- Keep-alive is now **disabled by default** (the spa already pushes status updates on its own; keep-alive is opt-in via integration options)
+- Added a configurable **keep-alive frame type** option:
+  - `existing_client_request` (default): sends the Existing Client Request frame (`0a bf 04`), which gets a real reply from the WiFi module (Configuration Response) — genuine proof of connection life
+  - `minimal`: sends the previous bare frame (`0a bf 00 00 01`), which the module accepts silently without any reply
+- Added missing translations for `keepalive_enabled`, `keepalive_interval`, and `socket_timeout` options (en/fr/nb)
+
 ### v0.2.1 (In Development)
 - Added configurable socket timeout (5-3600s, default: 30s) to handle slow networks
 - Improved connection stability with adjustable timeout settings

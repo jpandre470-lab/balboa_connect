@@ -21,7 +21,11 @@
             "init": {
                 "data": {
                     "scan_interval": "Avstemningsfrekvens for verdier (sekunder)",
-                    "sync_time": "Hold Balboa BP kontrollerens tid synkronisert med Home Assistant"
+                    "sync_time": "Hold Balboa BP kontrollerens tid synkronisert med Home Assistant",
+                    "keepalive_enabled": "Aktiver keep-alive (vanligvis un\u00f8dvendig, badekaret sender allerede status p\u00e5 eget initiativ)",
+                    "keepalive_interval": "Keep-alive-intervall (sekunder)",
+                    "keepalive_frame_type": "Keep-alive-rammetype: \"existing_client_request\" (standard, f\u00e5r et reelt svar fra WiFi-modulen) eller \"minimal\" (stille ramme, uten svar)",
+                    "socket_timeout": "Socket-tidsavbrudd (sekunder)"
                 }
             }
         }
