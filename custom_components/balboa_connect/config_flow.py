@@ -8,12 +8,15 @@ from .const import (
     CONF_SYNC_TIME,
     CONF_KEEPALIVE_ENABLED,
     CONF_KEEPALIVE_INTERVAL,
+    CONF_KEEPALIVE_FRAME_TYPE,
     CONF_SOCKET_TIMEOUT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_KEEPALIVE_ENABLED,
     DEFAULT_KEEPALIVE_INTERVAL,
+    DEFAULT_KEEPALIVE_FRAME_TYPE,
     DEFAULT_SOCKET_TIMEOUT,
     DOMAIN,
+    KEEPALIVE_FRAME_TYPES,
     MIN_SCAN_INTERVAL,
     MIN_KEEPALIVE_INTERVAL,
     MAX_KEEPALIVE_INTERVAL,
@@ -114,6 +117,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     cv.positive_int,
                     vol.Clamp(min=MIN_KEEPALIVE_INTERVAL, max=MAX_KEEPALIVE_INTERVAL),
                 ),
+                vol.Optional(
+                    CONF_KEEPALIVE_FRAME_TYPE,
+                    default=self.config_entry.options.get(
+                        CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE
+                    ),
+                ): vol.In(KEEPALIVE_FRAME_TYPES),
                 vol.Optional(
                     CONF_SOCKET_TIMEOUT,
                     default=self.config_entry.options.get(
