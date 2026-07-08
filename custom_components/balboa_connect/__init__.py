@@ -1,5 +1,6 @@
 """Init file for Balboa Connect integration."""
 import asyncio
+import types
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
@@ -73,6 +74,52 @@ async def async_setup_entry(hass, config_entry):
     keepalive_enabled = config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED)
     keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
     spa = spaclient(config_entry.data[CONF_HOST], keepalive_enabled, keepalive_interval)
+
+    # Attach logging wrappers to spa send functions so we can capture raw frames without editing spaclient.py
+    try:
+        orig_send_message = spa.send_message
+        def _log_and_send(self, type, payload):
+            try:
+                length = 5 + len(payload)
+                checksum = None
+                if hasattr(self, 'compute_checksum'):
+                    checksum = self.compute_checksum(length - 1, bytes([length]) + type + payload)
+                prefix = b'\x7e'
+                if checksum is not None:
+                    message = prefix + bytes([length]) + type + payload + bytes([checksum]) + prefix
+                else:
+                    message = prefix + bytes([length]) + type + payload + prefix
+                _LOGGER.debug("Outbound message (encapsulated): %s", message.hex())
+            except Exception as e:
+                _LOGGER.debug("Failed building message hex: %s", e)
+            # orig_send_message is a bound method; call it with the original signature
+            return orig_send_message(type, payload)
+        spa.send_message = types.MethodType(_log_and_send, spa)
+    except Exception:
+        _LOGGER.debug("Could not attach send_message wrapper")
+
+    try:
+        orig_send_async = getattr(spa, '_send_message_async', None)
+        if orig_send_async:
+            async def _log_and_send_async(self, type, payload):
+                try:
+                    length = 5 + len(payload)
+                    checksum = None
+                    if hasattr(self, 'compute_checksum'):
+                        checksum = self.compute_checksum(length - 1, bytes([length]) + type + payload)
+                    prefix = b'\x7e'
+                    if checksum is not None:
+                        message = prefix + bytes([length]) + type + payload + bytes([checksum]) + prefix
+                    else:
+                        message = prefix + bytes([length]) + type + payload + prefix
+                    _LOGGER.debug("Outbound async message (encapsulated): %s", message.hex())
+                except Exception as e:
+                    _LOGGER.debug("Failed building async message hex: %s", e)
+                return await orig_send_async(type, payload)
+            spa._send_message_async = types.MethodType(_log_and_send_async, spa)
+    except Exception:
+        _LOGGER.debug("Could not attach _send_message_async wrapper")
+
     hass.data[DOMAIN][config_entry.entry_id] = {
         SPA: spa, 
         DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
