@@ -2,12 +2,14 @@
 import asyncio
 import concurrent.futures
 import homeassistant.util.dt as dt_util
+import logging
 import socket
 
 # Import the device class from the component that you want to support
 from .const import (
     _LOGGER,
     DEFAULT_KEEPALIVE_FRAME_TYPE,
+    FAULT_MSG,
     KEEPALIVE_FRAME_MINIMAL,
     KEEPALIVE_FRAME_EXISTING_CLIENT,
 )
@@ -21,6 +23,284 @@ SOCKET_TIMEOUT = 15
 REQUEST_TIMEOUT = 30  # Maximum time to wait for a response
 MAX_RETRIES = 3
 RECONNECT_DELAY = 5
+
+
+# --- Frame name / decode maps used for debug logging only (see spa protocol docs in the parse_* methods below) ---
+
+_RX_FRAME_NAMES = {
+    b'\xff\xaf\x13': "Status Update",
+    b'\x0a\xbf\x23': "Filter Cycles Response",
+    b'\x0a\xbf\x24': "Information Response",
+    b'\x0a\xbf\x25': "Additional Information Response",
+    b'\x0a\xbf\x26': "Preferences Response",
+    b'\x0a\xbf\x28': "Fault Log Response",
+    b'\x0a\xbf\x2b': "GFCI Test Response",
+    b'\x0a\xbf\x2e': "Configuration Response",
+    b'\x0a\xbf\x94': "Module Identification Response",
+}
+
+_TX_FRAME_NAMES = {
+    b'\x0a\xbf\x00\x00\x01': "Keep-Alive (minimal)",
+    b'\x0a\xbf\x04': "Existing Client Request",
+    b'\x0a\xbf\x11': "Toggle Item Command",
+    b'\x0a\xbf\x20': "Set Temperature",
+    b'\x0a\xbf\x21': "Set Time",
+    b'\x0a\xbf\x22': "Item Request",
+    b'\x0a\xbf\x23': "Filter Cycles Config",
+    b'\x0a\xbf\x27': "Set Preference",
+    b'\x0a\xbf\x2d': "Set Lock",
+}
+
+_TX_ITEM_REQUEST_NAMES = {
+    0x00: "Configuration",
+    0x01: "Filter Cycles",
+    0x02: "Information",
+    0x04: "Additional Information",
+    0x08: "Preferences",
+    0x20: "Fault Log",
+    0x80: "GFCI Test",
+}
+
+_TX_TOGGLE_ITEM_NAMES = {
+    0x01: "Normal Operation",
+    0x03: "Clear Notification",
+    0x04: "Pump 1",
+    0x05: "Pump 2",
+    0x06: "Pump 3",
+    0x07: "Pump 4",
+    0x08: "Pump 5",
+    0x09: "Pump 6",
+    0x0c: "Blower",
+    0x0e: "Mister",
+    0x11: "Light 1",
+    0x12: "Light 2",
+    0x16: "Aux 1",
+    0x17: "Aux 2",
+    0x1b: "Flip Screen",
+    0x1d: "Standby Mode",
+    0x3c: "Hold Mode",
+    0x50: "Temp Range",
+    0x51: "Heat Mode",
+}
+
+_TX_PREFERENCE_NAMES = {
+    0x00: "Reminders",
+    0x01: "Temperature Scale",
+    0x02: "Clock Mode",
+    0x03: "Clean-up Cycle",
+    0x06: "M8 Artificial Intelligence",
+}
+
+_TX_LOCK_NAMES = {
+    0x01: "Settings Lock: On",
+    0x02: "Panel Lock: On",
+    0x03: "Settings Lock: Off",
+    0x04: "Panel Lock: Off",
+}
+
+
+def _decode_status_update(payload):
+    """Fully decode a Status Update payload for debug logs (read-only, no side effects)."""
+    d = {}
+    try:
+        d["spa_state"] = payload[0]
+        d["priming"] = payload[1] == 0x01
+        d["current_temp"] = payload[2] if payload[2] != 255 else None
+        d["hour"] = payload[3]
+        d["minute"] = payload[4]
+        heat_modes = ("Ready", "Rest", "Ready in Rest")
+        d["heat_mode"] = heat_modes[payload[5]] if payload[5] < len(heat_modes) else f"Unknown(0x{payload[5]:02x})"
+        d["reminder_type"] = payload[6]
+        d["hold_mode"] = payload[0] == 0x05
+        d["sensor_a_temp_or_hold_remain"] = payload[7] if payload[7] != 255 else None
+        d["sensor_b_temp"] = payload[8] if payload[8] not in (255, 0) else None
+        d["temp_scale"] = "Fahrenheit" if (payload[9] & 0x01) == 0 else "Celsius"
+        d["time_scale"] = "12 Hr" if (payload[9] & 0x02) == 0 else "24 Hr"
+        d["filter_mode"] = (payload[9] & 0x0c) >> 2
+        d["panel_locked"] = (payload[9] & 0x20) >> 5 == 1
+        d["flip_screen"] = (payload[9] & 0x80) >> 7 == 1
+        d["heating"] = (payload[10] & 0x30) >> 4 == 1
+        d["temp_range"] = "Low" if (payload[10] & 0x04) >> 2 == 0 else "High"
+        pump_states = ("Off", "Low", "High")
+        d["pump1"] = pump_states[payload[11] & 0x03]
+        d["pump2"] = pump_states[(payload[11] >> 2) & 0x03]
+        d["pump3"] = pump_states[(payload[11] >> 4) & 0x03]
+        d["pump4"] = pump_states[(payload[11] >> 6) & 0x03]
+        d["pump5"] = pump_states[payload[12] & 0x03]
+        d["pump6"] = pump_states[(payload[12] >> 6) & 0x03]
+        d["circ_pump"] = (payload[13] & 0x02) != 0
+        d["blower"] = "Off" if (payload[13] & 0x0c) >> 2 == 0 else "On"
+        d["light1"] = (payload[14] & 0x03) == 0x03
+        d["light2"] = ((payload[14] >> 6) & 0x03) == 0x03
+        d["mister"] = "Off" if (payload[15] & 0x01) == 0 else "On"
+        d["aux1"] = (payload[15] & 0x08) != 0
+        d["aux2"] = (payload[15] & 0x10) != 0
+        if len(payload) > 16:
+            d["wifi_state"] = payload[16]
+        if len(payload) > 18:
+            d["notification_type"] = payload[18]
+        if len(payload) > 19:
+            d["notification"] = (payload[19] & 0x20) >> 5 == 1
+            d["cleanup_cycle_active"] = (payload[19] & 0x0c) >> 2
+        if len(payload) > 20:
+            d["set_temp"] = payload[20]
+        if len(payload) > 21:
+            d["sensor_ab_temps"] = (payload[21] & 0x02) >> 1 == 1
+            d["settings_locked"] = (payload[21] & 0x08) >> 3 == 1
+        if len(payload) > 22:
+            d["standby_mode"] = (payload[22] & 0x01) == 1
+        if len(payload) > 24:
+            d["m8_cycle_time"] = payload[24]
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_additional_information(payload):
+    d = {}
+    try:
+        d["low_range_min"] = payload[2]
+        d["low_range_max"] = payload[3]
+        d["high_range_min"] = payload[4]
+        d["high_range_max"] = payload[5]
+        d["nb_of_pumps"] = sum((payload[7] >> i) & 0x01 for i in range(6))
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_configuration(payload):
+    d = {}
+    try:
+        d["pump1"] = payload[0] & 0x03
+        d["pump2"] = (payload[0] & 0x0c) >> 2
+        d["pump3"] = (payload[0] & 0x30) >> 4
+        d["pump4"] = (payload[0] & 0xc0) >> 6
+        d["pump5"] = payload[1] & 0x03
+        d["pump6"] = (payload[1] & 0xc0) >> 6
+        d["light1"] = (payload[2] & 0x03) != 0
+        d["light2"] = (payload[2] & 0xc0) != 0
+        d["circ_pump"] = (payload[3] & 0x80) != 0
+        d["blower"] = (payload[3] & 0x03) != 0
+        d["mister"] = (payload[4] & 0x30) != 0
+        d["aux1"] = (payload[4] & 0x01) != 0
+        d["aux2"] = (payload[4] & 0x02) != 0
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_fault_log(payload):
+    d = {}
+    try:
+        d["total_entries"] = payload[0]
+        d["entry_nb"] = payload[1]
+        msg_code = payload[2]
+        d["msg_code"] = msg_code
+        d["message"] = FAULT_MSG.get(msg_code, f"Unknown code {msg_code}")
+        d["days_ago"] = payload[3]
+        d["hour"] = payload[4]
+        d["minute"] = payload[5]
+        d["flags"] = payload[6]
+        d["set_temp"] = payload[7]
+        d["sensor_a_temp"] = payload[8]
+        d["sensor_b_temp"] = payload[9]
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_filter_cycles(payload):
+    d = {}
+    try:
+        d["filter1_begins"] = f"{payload[0]:02d}:{payload[1]:02d}"
+        d["filter1_runs"] = f"{payload[2]:02d}h{payload[3]:02d}"
+        filter2_enabled = payload[4] >> 7
+        d["filter2_enabled"] = bool(filter2_enabled)
+        d["filter2_begins"] = f"{payload[4] ^ (filter2_enabled << 7):02d}:{payload[5]:02d}"
+        d["filter2_runs"] = f"{payload[6]:02d}h{payload[7]:02d}"
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_gfci_test(payload):
+    d = {}
+    try:
+        d["result"] = "Pass" if payload[0] == 0x01 else f"0x{payload[0]:02x}"
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_information(payload):
+    d = {}
+    try:
+        model_name = "".join(chr(b) for b in payload[4:12]).strip()
+        d["model_name"] = model_name
+        d["sw_vers"] = f"{payload[2]}.{payload[3]}"
+        d["ssid"] = f"M{payload[0]}_{payload[1]} V{payload[2]}.{payload[3]}"
+        d["setup"] = payload[12]
+        d["cfg_signature"] = f"{payload[13]:x}{payload[14]:x}{payload[15]:x}{payload[16]:x}"
+        d["heater_voltage"] = 240 if payload[17] == 0x01 else "Unknown"
+        d["heater_type"] = "Standard" if payload[18] == 0x0A else "Unknown"
+        d["dip_switch"] = f"{payload[19]:08b}{payload[20]:08b}"
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_module_identification(payload):
+    d = {}
+    try:
+        d["macaddr"] = ":".join(f"{b:02x}" for b in payload[3:9])
+        d["mac_oui"] = ":".join(f"{b:02x}" for b in payload[17:20])
+        d["mac_nic"] = ":".join(f"{b:02x}" for b in payload[22:25])
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_preferences(payload):
+    d = {}
+    try:
+        d["reminders"] = ("Off", "On")[payload[1] & 0x01]
+        d["temp_scale"] = ("Fahrenheit", "Celsius")[payload[3] & 0x01]
+        d["clock_mode"] = ("12 Hr", "24 Hr")[payload[4] & 0x01]
+        d["clean_up_cycle"] = payload[5]
+        d["dolphin_address"] = payload[6]
+        d["m8_ai"] = ("Off", "On")[payload[8] & 0x01]
+    except Exception:
+        d["_decode_error"] = f"truncated payload ({len(payload)} bytes)"
+    return d
+
+
+def _decode_possible_error(payload):
+    """0xE1 and 0xF0 are listed as '?Error?' in the balboa_worldwide_app wiki,
+    with no documented field layout. We only know they exist; flag them
+    distinctly in logs instead of lumping them into generic 'Unknown' frames.
+    """
+    return {"raw_hex": payload.hex()}
+
+
+_RX_FRAME_DECODERS = {
+    b'\xff\xaf\x13': ("Status Update", _decode_status_update),
+    b'\x0a\xbf\x23': ("Filter Cycles Response", _decode_filter_cycles),
+    b'\x0a\xbf\x24': ("Information Response", _decode_information),
+    b'\x0a\xbf\x25': ("Additional Information Response", _decode_additional_information),
+    b'\x0a\xbf\x26': ("Preferences Response", _decode_preferences),
+    b'\x0a\xbf\x28': ("Fault Log Response", _decode_fault_log),
+    b'\x0a\xbf\x2b': ("GFCI Test Response", _decode_gfci_test),
+    b'\x0a\xbf\x2e': ("Configuration Response", _decode_configuration),
+    b'\x0a\xbf\x94': ("Module Identification Response", _decode_module_identification),
+    # Undocumented in the balboa_worldwide_app wiki beyond "?Error?" - field layout
+    # unknown, but worth flagging distinctly from generic unknown frames since they
+    # may be relevant to diagnosing disconnections.
+    b'\xff\xaf\xe1': ("Possible Error Frame (undocumented)", _decode_possible_error),
+    b'\xff\xaf\xf0': ("Possible Error Frame (undocumented)", _decode_possible_error),
+    b'\x0a\xbf\xe1': ("Possible Error Frame (undocumented)", _decode_possible_error),
+    b'\x0a\xbf\xf0': ("Possible Error Frame (undocumented)", _decode_possible_error),
+}
 
 
 class spaclient:
@@ -52,6 +332,11 @@ class spaclient:
 
         """ Status update variable """
         self.status_chunk_array = []
+
+        """ Debug log de-duplication state (received frames) """
+        self._rx_last_chunk = None
+        self._rx_last_decoded = None
+        self._rx_repeat_count = 0
 
         """ Status update variables """
         self.hold_mode = 0
@@ -221,11 +506,14 @@ class spaclient:
         if not self.socket_is_connected:
             _LOGGER.warning("Connection validation failed after %d attempts", count)
             await self._close_socket()
+        else:
+            _LOGGER.info("Connected to spa at %s", self.socket_host_ip)
 
         return self.socket_is_connected
     
     async def _close_socket(self):
         """Safely close the socket."""
+        self._flush_rx_log()
         if self.socket_s:
             try:
                 self.socket_s.close()
@@ -399,11 +687,94 @@ class spaclient:
         self.socket_l.release()
         return self._process_chunk(chunk)
     
+    def _format_decoded_frame(self, chunk):
+        """Build a fully decoded, human-readable string for a received frame (debug logs only).
+
+        Known frame types are decoded field-by-field (read-only, does not touch
+        parsed state). Unknown frame types are shown as raw hex.
+        """
+        if len(chunk) < 3:
+            return f"Unknown(short frame): {chunk.hex()}"
+        prefix = chunk[0:3]
+        payload = chunk[3:]
+        entry = _RX_FRAME_DECODERS.get(prefix)
+        if entry is None:
+            return f"Unknown(0x{prefix.hex()}): {payload.hex()}"
+        name, decoder = entry
+        fields = decoder(payload)
+        fields_str = ", ".join(f"{k}={v}" for k, v in fields.items())
+        return f"{name} [{fields_str}]"
+
+    def _log_rx_frame(self, chunk):
+        """Debug-log received frames, collapsing consecutive identical frames.
+
+        The first occurrence of a frame is logged immediately. Subsequent
+        identical frames (byte-for-byte) are counted silently. As soon as a
+        different frame arrives, the collapsed repeat count is logged first,
+        followed by the new frame.
+        """
+        if not _LOGGER.isEnabledFor(logging.DEBUG):
+            return
+        if chunk == self._rx_last_chunk:
+            self._rx_repeat_count += 1
+            return
+        if self._rx_repeat_count > 0:
+            _LOGGER.debug("RX: (repeated %dx) %s", self._rx_repeat_count, self._rx_last_decoded)
+        decoded = self._format_decoded_frame(chunk)
+        _LOGGER.debug("RX: %s", decoded)
+        self._rx_last_chunk = chunk
+        self._rx_last_decoded = decoded
+        self._rx_repeat_count = 0
+
+    def _flush_rx_log(self):
+        """Flush any pending collapsed repeat count. Call when the connection drops."""
+        if _LOGGER.isEnabledFor(logging.DEBUG) and self._rx_repeat_count > 0:
+            _LOGGER.debug("RX: (repeated %dx) %s", self._rx_repeat_count, self._rx_last_decoded)
+        self._rx_repeat_count = 0
+
+    def _format_tx_frame(self, type_bytes, payload):
+        """Build a human-readable label for an outbound frame (debug logs only)."""
+        name = _TX_FRAME_NAMES.get(type_bytes)
+        prefix = type_bytes[0:3]
+        if name is None:
+            name = _TX_FRAME_NAMES.get(prefix)
+        if name is None:
+            return f"Unknown(0x{type_bytes.hex()}) payload={payload.hex()}"
+
+        detail = None
+        if prefix == b'\x0a\xbf\x22' and len(payload) > 0:
+            detail = _TX_ITEM_REQUEST_NAMES.get(payload[0], f"0x{payload[0]:02x}")
+        elif prefix == b'\x0a\xbf\x11' and len(payload) > 0:
+            detail = _TX_TOGGLE_ITEM_NAMES.get(payload[0], f"0x{payload[0]:02x}")
+        elif prefix == b'\x0a\xbf\x27' and len(payload) > 1:
+            pref_name = _TX_PREFERENCE_NAMES.get(payload[0], f"0x{payload[0]:02x}")
+            detail = f"{pref_name}={payload[1]}"
+        elif prefix == b'\x0a\xbf\x2d' and len(payload) > 0:
+            detail = _TX_LOCK_NAMES.get(payload[0], f"0x{payload[0]:02x}")
+        elif prefix == b'\x0a\xbf\x20' and len(payload) > 0:
+            detail = str(payload[0])
+        elif prefix == b'\x0a\xbf\x21' and len(payload) > 1:
+            raw_hour = payload[0]
+            hour = raw_hour - 128 if raw_hour >= 128 else raw_hour
+            detail = f"{hour:02d}:{payload[1]:02d}"
+
+        if detail is not None:
+            return f"{name} ({detail})"
+        return f"{name} payload={payload.hex()}" if payload else name
+
+    def _log_tx_frame(self, type_bytes, payload):
+        """Debug-log an outbound command before it is sent."""
+        if not _LOGGER.isEnabledFor(logging.DEBUG):
+            return
+        _LOGGER.debug("TX: %s", self._format_tx_frame(type_bytes, payload))
+
     def _process_chunk(self, chunk):
 
         """Process received chunk and parse response."""
         if chunk is None or len(chunk) < 3:
             return True
+
+        self._log_rx_frame(chunk)
             
         if chunk != self.status_chunk_array:
             if chunk[0:3] == b'\xff\xaf\x13' and ((self.information_loaded and self.additional_information_loaded and self.preferences_loaded and self.configuration_loaded and self.module_identification_loaded) or (self.socket_is_connected == False)):
@@ -1247,6 +1618,7 @@ class spaclient:
 
     def send_message(self, type, payload):
         """Send a message to the spa (synchronous - for backward compatibility)."""
+        self._log_tx_frame(type, payload)
         if self.socket_s is None:
             _LOGGER.warning("Cannot send message, socket is None")
             return False

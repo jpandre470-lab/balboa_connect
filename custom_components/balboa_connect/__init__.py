@@ -1,6 +1,5 @@
 """Init file for Balboa Connect integration."""
 import asyncio
-import types
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
@@ -83,50 +82,9 @@ async def async_setup_entry(hass, config_entry):
         keepalive_frame_type=keepalive_frame_type,
     )
 
-    # Attach logging wrappers to spa send functions so we can capture raw frames without editing spaclient.py
-    try:
-        orig_send_message = spa.send_message
-        def _log_and_send(self, type, payload):
-            try:
-                length = 5 + len(payload)
-                checksum = None
-                if hasattr(self, 'compute_checksum'):
-                    checksum = self.compute_checksum(length - 1, bytes([length]) + type + payload)
-                prefix = b'\x7e'
-                if checksum is not None:
-                    message = prefix + bytes([length]) + type + payload + bytes([checksum]) + prefix
-                else:
-                    message = prefix + bytes([length]) + type + payload + prefix
-                _LOGGER.debug("Outbound message (encapsulated): %s", message.hex())
-            except Exception as e:
-                _LOGGER.debug("Failed building message hex: %s", e)
-            # orig_send_message is a bound method; call it with the original signature
-            return orig_send_message(type, payload)
-        spa.send_message = types.MethodType(_log_and_send, spa)
-    except Exception:
-        _LOGGER.debug("Could not attach send_message wrapper")
-
-    try:
-        orig_send_async = getattr(spa, '_send_message_async', None)
-        if orig_send_async:
-            async def _log_and_send_async(self, type, payload):
-                try:
-                    length = 5 + len(payload)
-                    checksum = None
-                    if hasattr(self, 'compute_checksum'):
-                        checksum = self.compute_checksum(length - 1, bytes([length]) + type + payload)
-                    prefix = b'\x7e'
-                    if checksum is not None:
-                        message = prefix + bytes([length]) + type + payload + bytes([checksum]) + prefix
-                    else:
-                        message = prefix + bytes([length]) + type + payload + prefix
-                    _LOGGER.debug("Outbound async message (encapsulated): %s", message.hex())
-                except Exception as e:
-                    _LOGGER.debug("Failed building async message hex: %s", e)
-                return await orig_send_async(type, payload)
-            spa._send_message_async = types.MethodType(_log_and_send_async, spa)
-    except Exception:
-        _LOGGER.debug("Could not attach _send_message_async wrapper")
+    # Outbound and inbound frame logging is now handled natively inside
+    # spaclient.py (send_message / _send_message_async / _process_chunk),
+    # so no wrapper is needed here anymore.
 
     hass.data[DOMAIN][config_entry.entry_id] = {
         SPA: spa, 
@@ -206,6 +164,17 @@ async def async_unload_entry(hass, config_entry) -> bool:
 
 async def update_listener(hass, config_entry):
     """Handle options update."""
+
+    _LOGGER.info(
+        "Balboa Connect options: sync_time=%s, keepalive_enabled=%s, keepalive_interval=%s, "
+        "keepalive_frame_type=%s, socket_timeout=%s, scan_interval=%s",
+        config_entry.options.get(CONF_SYNC_TIME, False),
+        config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED),
+        config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL),
+        config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE),
+        config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT),
+        config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+    )
 
     if config_entry.options.get(CONF_SYNC_TIME):
         spa = hass.data[DOMAIN][config_entry.entry_id][SPA]
