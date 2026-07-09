@@ -164,6 +164,13 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 
 ## Version History
 
+### v0.2.3 (In Development)
+- **Objective:** Improve logging to support finer diagnosis of recurring disconnections
+- Clear separation between **normal logs (INFO)** — connection established, options changed — and **debug logs**
+- **Outbound commands (TX)**: every command sent is now logged natively (name + decoded arguments, e.g. `Toggle Item Command (Pump 2)`), replacing the previous fragile monkey-patch
+- **Inbound frames (RX)**: consecutive identical frames are collapsed — the first occurrence is logged immediately, repeats are counted silently, and the count is logged as soon as a different frame arrives
+- **Known frames are fully decoded field-by-field** (Status Update, Configuration Response, Information Response, Fault Log Response, etc.); unknown frames are logged as raw hex
+
 ### v0.2.2 (In Development)
 - **Objective:** Make the integration as passive as possible on the connection to improve stability
 - Keep-alive is now **disabled by default** (the spa already pushes status updates on its own; keep-alive is opt-in via integration options)
