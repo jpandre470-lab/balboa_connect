@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Native debug logging of every outbound command (TX), with name and decoded arguments (e.g. `Toggle Item Command (Pump 2)`), replacing the previous monkey-patch-based logging.
 - Debug logging of inbound frames (RX) with de-duplication: the first occurrence of a frame is logged immediately, identical repeats are counted silently, and the count is logged as soon as a different frame arrives.
 - Full field-by-field decoding of all known frame types in debug logs (Status Update, Configuration Response, Information Response, Additional Information Response, Preferences Response, Fault Log Response, Filter Cycles Response, GFCI Test Response, Module Identification Response). Unknown frames are logged as raw hex.
+- Fault Log Response debug logs now include the decoded human-readable fault message (reusing the existing `FAULT_MSG` table from `const.py`), not just the raw code.
+- The two undocumented "?Error?" frame types from the balboa_worldwide_app protocol wiki (0xE1, 0xF0) are now flagged distinctly as `Possible Error Frame (undocumented)` in debug logs instead of blending into generic unknown frames.
 
 ### Changed
 - Removed the fragile `types.MethodType` monkey-patch previously used in `__init__.py` to capture outbound frames; logging is now built natively into `spaclient.py`.

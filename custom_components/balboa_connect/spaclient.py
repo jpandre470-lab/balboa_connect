@@ -9,6 +9,7 @@ import socket
 from .const import (
     _LOGGER,
     DEFAULT_KEEPALIVE_FRAME_TYPE,
+    FAULT_MSG,
     KEEPALIVE_FRAME_MINIMAL,
     KEEPALIVE_FRAME_EXISTING_CLIENT,
 )
@@ -194,7 +195,9 @@ def _decode_fault_log(payload):
     try:
         d["total_entries"] = payload[0]
         d["entry_nb"] = payload[1]
-        d["msg_code"] = payload[2]
+        msg_code = payload[2]
+        d["msg_code"] = msg_code
+        d["message"] = FAULT_MSG.get(msg_code, f"Unknown code {msg_code}")
         d["days_ago"] = payload[3]
         d["hour"] = payload[4]
         d["minute"] = payload[5]
@@ -272,6 +275,14 @@ def _decode_preferences(payload):
     return d
 
 
+def _decode_possible_error(payload):
+    """0xE1 and 0xF0 are listed as '?Error?' in the balboa_worldwide_app wiki,
+    with no documented field layout. We only know they exist; flag them
+    distinctly in logs instead of lumping them into generic 'Unknown' frames.
+    """
+    return {"raw_hex": payload.hex()}
+
+
 _RX_FRAME_DECODERS = {
     b'\xff\xaf\x13': ("Status Update", _decode_status_update),
     b'\x0a\xbf\x23': ("Filter Cycles Response", _decode_filter_cycles),
@@ -282,6 +293,13 @@ _RX_FRAME_DECODERS = {
     b'\x0a\xbf\x2b': ("GFCI Test Response", _decode_gfci_test),
     b'\x0a\xbf\x2e': ("Configuration Response", _decode_configuration),
     b'\x0a\xbf\x94': ("Module Identification Response", _decode_module_identification),
+    # Undocumented in the balboa_worldwide_app wiki beyond "?Error?" - field layout
+    # unknown, but worth flagging distinctly from generic unknown frames since they
+    # may be relevant to diagnosing disconnections.
+    b'\xff\xaf\xe1': ("Possible Error Frame (undocumented)", _decode_possible_error),
+    b'\xff\xaf\xf0': ("Possible Error Frame (undocumented)", _decode_possible_error),
+    b'\x0a\xbf\xe1': ("Possible Error Frame (undocumented)", _decode_possible_error),
+    b'\x0a\xbf\xf0': ("Possible Error Frame (undocumented)", _decode_possible_error),
 }
 
 
