@@ -17,6 +17,9 @@
         }
     },
     "options": {
+        "error": {
+            "invalid_rgb": "Invalid RGB value. Use the format R,G,B with each value between 0 and 255 (e.g. 255,0,0)"
+        },
         "step": {
             "init": {
                 "data": {
@@ -25,7 +28,24 @@
                     "keepalive_enabled": "Enable keep-alive (usually not needed, the spa already pushes status updates on its own)",
                     "keepalive_interval": "Keep-alive interval (seconds)",
                     "keepalive_frame_type": "Keep-alive frame type: \"existing_client_request\" (default, gets a real reply from the WiFi module) or \"minimal\" (silent frame, no reply)",
-                    "socket_timeout": "Socket timeout (seconds)"
+                    "socket_timeout": "Socket timeout (seconds)",
+                    "light_mode": "Light control mode"
+                }
+            },
+            "led_palette": {
+                "description": "Current palette:\n{palette}",
+                "data": {
+                    "led_delay_on": "Delay while the light stays on during a color cycle pulse (ms)",
+                    "led_delay_off": "Delay while the light stays off during a color cycle pulse (ms)",
+                    "led_delay_reset": "Delay to reset the color cycle back to the first color (seconds)",
+                    "action": "Action"
+                }
+            },
+            "led_edit": {
+                "data": {
+                    "name": "Color name",
+                    "cycles": "Number of on/off cycles to reach this color",
+                    "rgb": "RGB value (for display only, format: R,G,B)"
                 }
             }
         }

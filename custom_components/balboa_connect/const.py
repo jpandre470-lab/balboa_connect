@@ -33,6 +33,44 @@ MIN_SOCKET_TIMEOUT = 5
 MAX_SOCKET_TIMEOUT = 3600
 SPA = "spa"
 
+# LED color cycling
+# The LED units have no direct "set color" command; color is selected by
+# rapidly toggling power a fixed number of times (reverse-engineered from
+# physical behavior, not documented in the protocol wiki).
+CONF_LIGHT_MODE = "light_mode"
+LIGHT_MODE_SWITCH = "switch"
+LIGHT_MODE_COLOR = "color"
+DEFAULT_LIGHT_MODE = LIGHT_MODE_SWITCH
+
+CONF_LED_COLORS = "led_colors"
+CONF_LED_DELAY_ON = "led_delay_on"
+CONF_LED_DELAY_OFF = "led_delay_off"
+CONF_LED_DELAY_RESET = "led_delay_reset"
+DEFAULT_LED_DELAY_ON = 500      # ms - pause after switching on, before switching off again
+DEFAULT_LED_DELAY_OFF = 500     # ms - pause after switching off, before switching on again
+DEFAULT_LED_DELAY_RESET = 3     # seconds - pause used to reset the color cycle back to color 1
+MIN_LED_DELAY_MS = 100
+MAX_LED_DELAY_MS = 5000
+MIN_LED_DELAY_RESET = 1
+MAX_LED_DELAY_RESET = 60
+
+LED_COLOR_NAME = "name"
+LED_COLOR_CYCLES = "cycles"
+LED_COLOR_RGB = "rgb"
+LIGHT_OFF = "Off"
+
+DEFAULT_LED_COLORS = [
+    {LED_COLOR_NAME: "Red",    LED_COLOR_CYCLES: 1, LED_COLOR_RGB: [255, 0,   0]},
+    {LED_COLOR_NAME: "Green",  LED_COLOR_CYCLES: 2, LED_COLOR_RGB: [0,   255, 0]},
+    {LED_COLOR_NAME: "Blue",   LED_COLOR_CYCLES: 3, LED_COLOR_RGB: [0,   0,   255]},
+    {LED_COLOR_NAME: "Yellow", LED_COLOR_CYCLES: 4, LED_COLOR_RGB: [255, 255, 0]},
+    {LED_COLOR_NAME: "Cyan",   LED_COLOR_CYCLES: 5, LED_COLOR_RGB: [0,   255, 255]},
+    {LED_COLOR_NAME: "Pink",   LED_COLOR_CYCLES: 6, LED_COLOR_RGB: [255, 105, 180]},
+    {LED_COLOR_NAME: "White",  LED_COLOR_CYCLES: 7, LED_COLOR_RGB: [255, 255, 255]},
+    {LED_COLOR_NAME: "Random", LED_COLOR_CYCLES: 8, LED_COLOR_RGB: [128, 128, 128]},
+]
+
+
 SPACLIENT_COMPONENTS = [
     "binary_sensor",
     "climate",
@@ -81,6 +119,7 @@ ICONS = {
     "Heater Voltage": "mdi:flash",
     "Heater Type": "mdi:water-boiler",
     "Hold Mode": "mdi:car-brake-hold",
+    "Light Color": "mdi:led-strip-variant",
     "M8 AI": "mdi:robot",
     "Mister": "mdi:auto-fix",
     "Model Name": "mdi:information-outline",

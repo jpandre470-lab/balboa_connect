@@ -17,6 +17,9 @@
         }
     },
     "options": {
+        "error": {
+            "invalid_rgb": "Valeur RGB invalide. Utilisez le format R,G,B avec chaque valeur entre 0 et 255 (ex : 255,0,0)"
+        },
         "step": {
             "init": {
                 "data": {
@@ -25,7 +28,24 @@
                     "keepalive_enabled": "Activer le keep-alive (g\u00e9n\u00e9ralement inutile, le spa envoie d\u00e9j\u00e0 ses statuts spontan\u00e9ment)",
                     "keepalive_interval": "Intervalle du keep-alive (secondes)",
                     "keepalive_frame_type": "Type de trame keep-alive : \"existing_client_request\" (d\u00e9faut, obtient une vraie r\u00e9ponse du module Wi-Fi) ou \"minimal\" (trame silencieuse, sans r\u00e9ponse)",
-                    "socket_timeout": "D\u00e9lai d'expiration du socket (secondes)"
+                    "socket_timeout": "D\u00e9lai d'expiration du socket (secondes)",
+                    "light_mode": "Mode de contr\u00f4le des lumi\u00e8res"
+                }
+            },
+            "led_palette": {
+                "description": "Palette actuelle :\n{palette}",
+                "data": {
+                    "led_delay_on": "D\u00e9lai pendant lequel la lumi\u00e8re reste allum\u00e9e lors d'une impulsion du cycle de couleur (ms)",
+                    "led_delay_off": "D\u00e9lai pendant lequel la lumi\u00e8re reste \u00e9teinte lors d'une impulsion du cycle de couleur (ms)",
+                    "led_delay_reset": "D\u00e9lai pour r\u00e9initialiser le cycle de couleur sur la premi\u00e8re couleur (secondes)",
+                    "action": "Action"
+                }
+            },
+            "led_edit": {
+                "data": {
+                    "name": "Nom de la couleur",
+                    "cycles": "Nombre de cycles marche/arr\u00eat pour atteindre cette couleur",
+                    "rgb": "Valeur RGB (affichage uniquement, format : R,G,B)"
                 }
             }
         }

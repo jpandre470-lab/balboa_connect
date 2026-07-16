@@ -17,6 +17,9 @@
         }
     },
     "options": {
+        "error": {
+            "invalid_rgb": "Ugyldig RGB-verdi. Bruk formatet R,G,B med hver verdi mellom 0 og 255 (f.eks. 255,0,0)"
+        },
         "step": {
             "init": {
                 "data": {
@@ -25,7 +28,24 @@
                     "keepalive_enabled": "Aktiver keep-alive (vanligvis un\u00f8dvendig, badekaret sender allerede status p\u00e5 eget initiativ)",
                     "keepalive_interval": "Keep-alive-intervall (sekunder)",
                     "keepalive_frame_type": "Keep-alive-rammetype: \"existing_client_request\" (standard, f\u00e5r et reelt svar fra WiFi-modulen) eller \"minimal\" (stille ramme, uten svar)",
-                    "socket_timeout": "Socket-tidsavbrudd (sekunder)"
+                    "socket_timeout": "Socket-tidsavbrudd (sekunder)",
+                    "light_mode": "Lysstyringsmodus"
+                }
+            },
+            "led_palette": {
+                "description": "N\u00e5v\u00e6rende palett:\n{palette}",
+                "data": {
+                    "led_delay_on": "Forsinkelse mens lyset er p\u00e5 under en fargesyklus-puls (ms)",
+                    "led_delay_off": "Forsinkelse mens lyset er av under en fargesyklus-puls (ms)",
+                    "led_delay_reset": "Forsinkelse for \u00e5 tilbakestille fargesyklusen til den f\u00f8rste fargen (sekunder)",
+                    "action": "Handling"
+                }
+            },
+            "led_edit": {
+                "data": {
+                    "name": "Fargenavn",
+                    "cycles": "Antall p\u00e5/av-sykluser for \u00e5 n\u00e5 denne fargen",
+                    "rgb": "RGB-verdi (kun visning, format: R,G,B)"
                 }
             }
         }

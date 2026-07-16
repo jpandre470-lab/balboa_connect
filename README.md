@@ -164,6 +164,13 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 
 ## Version History
 
+### v0.3.0 (In Development)
+- **Objective:** Rework entities (heat modes, temperature range, LEDs) and adapt the config flow to all current options
+- **LED color control**: new `light_mode` option lets you choose between:
+  - `switch` (default): simple on/off lights, unchanged from before
+  - `color`: each light becomes a select entity offering a configurable color palette. Colors are selected by rapidly toggling the light a fixed number of times (reverse-engineered LED cycling behavior, not documented in the protocol)
+- New options flow steps to manage the LED palette: add/edit/delete colors (name, cycle count, RGB for display), reset to default palette, and configure the on/off pulse delays plus the cycle-reset delay (in seconds, default 3s)
+
 ### v0.2.3 (In Development)
 - **Objective:** Improve logging to support finer diagnosis of recurring disconnections
 - Clear separation between **normal logs (INFO)** — connection established, options changed — and **debug logs**
