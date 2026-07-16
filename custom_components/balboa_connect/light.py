@@ -1,7 +1,14 @@
 """Support for Spa Client lights."""
 # Import the device class from the component that you want to support
 from . import SpaClientDevice
-from .const import _LOGGER, DOMAIN, SPA
+from .const import (
+    _LOGGER,
+    CONF_LIGHT_MODE,
+    DEFAULT_LIGHT_MODE,
+    DOMAIN,
+    LIGHT_MODE_SWITCH,
+    SPA,
+)
 from datetime import timedelta
 from homeassistant.components.light import ColorMode, LightEntity
 
@@ -10,6 +17,11 @@ SCAN_INTERVAL = timedelta(seconds=1)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Setup the Spa Client lights."""
+
+    # Simple on/off lights only apply in "switch" mode. In "color" mode,
+    # the same lights are exposed as color-cycling selects instead (select.py).
+    if config_entry.options.get(CONF_LIGHT_MODE, DEFAULT_LIGHT_MODE) != LIGHT_MODE_SWITCH:
+        return
 
     spaclient = hass.data[DOMAIN][config_entry.entry_id][SPA]
     entities = []

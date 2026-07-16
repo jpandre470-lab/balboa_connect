@@ -4,9 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] - v0.2.3 (In Development)
+## [Unreleased] - v0.3.0 (In Development)
 
-**Objective:** Improve logging to support finer diagnosis of recurring disconnections.
+**Objective:** Rework entities (heat modes, temperature range, LEDs) and adapt the config flow to all current options.
+
+### Added
+- `light_mode` option (`switch` | `color`) to choose between simple on/off lights (default, unchanged) and color-cycling selects.
+- `BalboaLightSelect` entity: selects a color from a configurable palette by rapidly toggling the light a fixed number of times (reverse-engineered LED cycling behavior).
+- Options flow steps to manage the LED palette (add/edit/delete/reset colors) and configure on/off pulse delays plus the cycle-reset delay (seconds, default 3s).
+
+## [0.2.3]
 
 ### Added
 - Clear separation between normal logs (INFO: connection established, options changed) and debug logs.
