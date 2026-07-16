@@ -39,8 +39,6 @@ CLEANUP_CYCLE_OPTIONS = [
     "240 min",
 ]
 
-HEAT_MODE_OPTIONS = ["Ready", "Rest", "Ready in Rest"]
-
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Setup the Balboa Connect select entities."""
@@ -51,7 +49,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entities.append(TemperatureScale(spaclient, config_entry))
     entities.append(ClockMode(spaclient, config_entry))
     entities.append(CleanupCycle(spaclient, config_entry))
-    entities.append(HeatMode(spaclient, config_entry))
 
     # Light color selects only apply in "color" mode. In "switch" mode, the
     # same lights are exposed as plain on/off lights instead (light.py).
@@ -180,44 +177,6 @@ class CleanupCycle(SpaClientDevice, SelectEntity):
             # Parse "30 min" -> 1, "60 min" -> 2, etc.
             minutes = int(option.replace(" min", ""))
             self._spaclient.set_cleanup_cycle(minutes // 30)
-
-    @property
-    def available(self) -> bool:
-        return self._spaclient.get_gateway_status()
-
-
-class HeatMode(SpaClientDevice, SelectEntity):
-    """Representation of the Heat Mode select."""
-
-    def __init__(self, spaclient, config_entry):
-        """Initialize the device."""
-        super().__init__(spaclient, config_entry)
-        self._spaclient = spaclient
-        self._icon = ICONS.get('Heat Mode')
-
-    @property
-    def unique_id(self) -> str:
-        return f"{self._spaclient.get_macaddr().replace(':', '')}#heat_mode"
-
-    @property
-    def name(self):
-        return 'Heat Mode'
-
-    @property
-    def icon(self):
-        return self._icon
-
-    @property
-    def options(self):
-        return HEAT_MODE_OPTIONS
-
-    @property
-    def current_option(self):
-        return self._spaclient.get_heat_mode()
-
-    async def async_select_option(self, option: str) -> None:
-        """Change the selected option."""
-        self._spaclient.set_heat_mode(option)
 
     @property
     def available(self) -> bool:

@@ -9,20 +9,40 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 SCAN_INTERVAL = timedelta(seconds=1)
 
-SUPPORT_HVAC = [HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+SUPPORT_HVAC = [HVACMode.HEAT, HVACMode.OFF, HVACMode.AUTO]
 
-# Mapping between spa heat modes and HVAC modes
+# Mapping between spa heat modes and HVAC modes.
+# This mirrors the official Home Assistant Core Balboa integration
+# (homeassistant/components/balboa/climate.py), with one deliberate
+# difference: AUTO is included in hvac_modes so the thermostat card
+# correctly reflects the state when the spa enters "Ready in Rest" on its
+# own, instead of only being visible through get_heat_mode()/select.py.
+# - Ready -> HEAT (actively heating to reach the set point)
+# - Rest -> OFF (heating restricted to filter cycles only; not a real "off",
+#   but closer to it semantically than COOL, which implies active cooling
+#   a spa can never actually do)
+# - Ready in Rest -> AUTO. This state is entered automatically by the spa
+#   when a pump starts while in Rest mode; there is no direct command to
+#   request it, so it is deliberately left out of HVAC_TO_HEAT_MODE.
+#   Selecting "Auto" from the thermostat card is therefore a silent no-op
+#   (see async_set_hvac_mode) - it's included in hvac_modes for display,
+#   not as something you can actively request.
 HEAT_MODE_TO_HVAC = {
     "Ready": HVACMode.HEAT,
-    "Rest": HVACMode.COOL,
-    "Ready in Rest": HVACMode.HEAT_COOL
+    "Rest": HVACMode.OFF,
+    "Ready in Rest": HVACMode.AUTO,
 }
 
 HVAC_TO_HEAT_MODE = {
     HVACMode.HEAT: "Ready",
-    HVACMode.COOL: "Rest",
-    HVACMode.HEAT_COOL: "Ready in Rest"
+    HVACMode.OFF: "Rest",
 }
+
+# Presets mirror the spa's own heat mode names directly on the thermostat
+# card. "Ready in Rest" is excluded from the settable list for the same
+# reason as hvac_modes/select.py: there is no direct command to force it,
+# it only occurs automatically - but preset_mode can still report it.
+PRESET_MODES = ["Ready", "Rest"]
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -64,10 +84,11 @@ class SpaThermostat(SpaClientDevice, ClimateEntity):
     @property
     def hvac_mode(self):
         """Return current HVAC mode based on heat mode.
-        
-        Ready = HEAT (active heating with normal range)
-        Rest = COOL (heating with lower temperature range)
-        Ready in Rest = HEAT_COOL (auto mode)
+
+        Ready = HEAT (actively heating to reach the set point)
+        Rest = OFF (heating restricted to filter cycles only)
+        Ready in Rest = AUTO (visible in the thermostat card, but not
+        selectable - see async_set_hvac_mode)
         """
         heat_mode = self._spaclient.get_heat_mode()
         return HEAT_MODE_TO_HVAC.get(heat_mode, HVACMode.OFF)
@@ -97,7 +118,21 @@ class SpaThermostat(SpaClientDevice, ClimateEntity):
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return ClimateEntityFeature.TARGET_TEMPERATURE
+        return ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+
+    @property
+    def preset_modes(self):
+        """Return available presets (spa heat mode names, directly on the thermostat card)."""
+        return PRESET_MODES
+
+    @property
+    def preset_mode(self):
+        """Return the current preset (spa heat mode: Ready, Rest, or Ready in Rest)."""
+        return self._spaclient.get_heat_mode()
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set the spa heat mode directly via its own names."""
+        self._spaclient.set_heat_mode(preset_mode)
 
     @property
     def current_temperature(self):
@@ -135,14 +170,22 @@ class SpaThermostat(SpaClientDevice, ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set new target HVAC mode via heat mode.
-        
-        HEAT = Ready (active heating with normal range)
-        COOL = Rest (heating with lower temperature range)
-        HEAT_COOL = Ready in Rest (auto mode)
+
+        HEAT = Ready (actively heating to reach the set point)
+        OFF = Rest (heating restricted to filter cycles only)
+        AUTO = Ready in Rest, included in hvac_modes for display only. It
+        cannot be requested directly (see HVAC_TO_HEAT_MODE) - it only
+        occurs automatically, so selecting it here is a no-op.
         """
-        if hvac_mode in HVAC_TO_HEAT_MODE:
-            heat_mode = HVAC_TO_HEAT_MODE[hvac_mode]
-            self._spaclient.set_heat_mode(heat_mode)
+        if hvac_mode not in HVAC_TO_HEAT_MODE:
+            if hvac_mode == HVACMode.AUTO:
+                _LOGGER.info(
+                    "HVAC mode 'auto' (Ready in Rest) cannot be set directly; "
+                    "it only occurs automatically when a pump starts while in Rest mode."
+                )
+            return
+        heat_mode = HVAC_TO_HEAT_MODE[hvac_mode]
+        self._spaclient.set_heat_mode(heat_mode)
 
     @property
     def min_temp(self):

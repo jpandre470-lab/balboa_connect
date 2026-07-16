@@ -164,6 +164,14 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 
 ## Version History
 
+### v0.3.1 (In Development)
+- **Objective:** Align the heat mode / HVAC mode mapping with the official Home Assistant Core Balboa integration
+- `Rest` now maps to `HVACMode.OFF` instead of `COOL` (a spa never actively cools, so `COOL` was misleading; `OFF` matches `pybalboa`/HA Core's own mapping)
+- `Ready in Rest` now maps to `HVACMode.AUTO`. Unlike the official HA Core integration, `AUTO` is kept in `hvac_modes` (not removed) so the thermostat card correctly reflects the state when the spa enters "Ready in Rest" on its own — but it still can't be selected directly (doing so is a no-op, since there's no command to force that state)
+- The "Heat Mode" select entity no longer offers "Ready in Rest" as a settable option (it can still be *displayed* when active), fixing a bug where selecting it only sent a blind Ready/Rest toggle instead of actually reaching that state
+- `set_heat_mode()` now sends the toggle command twice when transitioning from "Ready in Rest" to "Ready", to reliably land on the requested state (mirrors `pybalboa`'s `HeatModeSpaControl.set_state` logic)
+- The thermostat entity now also exposes a **preset** (`ClimateEntityFeature.PRESET_MODE`) showing the spa's own heat mode names directly on the card ("Ready" / "Rest" / "Ready in Rest"), alongside the HVAC mode. The standalone "Heat Mode" select entity has been removed, as it's now redundant with this preset
+
 ### v0.3.0 (In Development)
 - **Objective:** Rework entities (heat modes, temperature range, LEDs) and adapt the config flow to all current options
 - **LED color control**: new `light_mode` option lets you choose between:
