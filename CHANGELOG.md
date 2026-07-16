@@ -14,9 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The "Heat Mode" select entity no longer offers "Ready in Rest" as a settable option, fixing a bug where selecting it only sent a blind Ready/Rest toggle instead of actually reaching that state.
 - `set_heat_mode()` now sends the toggle command twice when transitioning from "Ready in Rest" to "Ready", to reliably land on the requested state (mirrors `pybalboa`'s `HeatModeSpaControl.set_state` logic).
 - The thermostat entity now also exposes a preset (`ClimateEntityFeature.PRESET_MODE`) showing the spa's own heat mode names directly on the card ("Ready" / "Rest" / "Ready in Rest"), alongside the HVAC mode.
+- The "Temperature Range" switch has been converted to a select entity (`Low` / `High`), for consistency with the other select-based settings.
 
 ### Removed
 - The standalone "Heat Mode" select entity (`select.py`), now redundant with the thermostat's new preset.
+- The "Temperature Range" switch entity (`switch.py`), replaced by a select entity.
 
 ## [0.3.0]
 

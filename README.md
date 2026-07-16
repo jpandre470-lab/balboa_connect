@@ -162,6 +162,10 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 - **Async Socket Communication:** Non-blocking with keep-alive
 - **Automatic Reconnection:** Graceful handling of network interruptions
 
+## Known Limitations
+
+- **Select/preset state values are not translated.** Config flow field labels are translated (en/fr/nb), but the state values themselves (e.g. `Ready`, `Rest`, `Ready in Rest`, `Low`, `High`, `30 min`) are always shown in English, since they are used directly as internal values rather than translation keys. Fixing this for real would mean switching every select/preset to stable snake_case keys (`ready`, `rest`, ...) plus a `state_attributes` translation block per entity, across all select entities consistently - a dedicated iteration on its own.
+
 ## Version History
 
 ### v0.3.1 (In Development)
@@ -171,6 +175,7 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 - The "Heat Mode" select entity no longer offers "Ready in Rest" as a settable option (it can still be *displayed* when active), fixing a bug where selecting it only sent a blind Ready/Rest toggle instead of actually reaching that state
 - `set_heat_mode()` now sends the toggle command twice when transitioning from "Ready in Rest" to "Ready", to reliably land on the requested state (mirrors `pybalboa`'s `HeatModeSpaControl.set_state` logic)
 - The thermostat entity now also exposes a **preset** (`ClimateEntityFeature.PRESET_MODE`) showing the spa's own heat mode names directly on the card ("Ready" / "Rest" / "Ready in Rest"), alongside the HVAC mode. The standalone "Heat Mode" select entity has been removed, as it's now redundant with this preset
+- The "Temperature Range" switch has been converted to a select entity with two options (`Low` / `High`), for consistency with the other select-based settings
 
 ### v0.3.0 (In Development)
 - **Objective:** Rework entities (heat modes, temperature range, LEDs) and adapt the config flow to all current options

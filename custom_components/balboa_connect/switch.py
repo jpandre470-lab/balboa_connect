@@ -33,7 +33,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entities.append(EnableFilterCycle2(spaclient, config_entry))
     entities.append(HoldMode(spaclient, config_entry))
     entities.append(StandbyMode(spaclient, config_entry))
-    entities.append(TempRange(spaclient, config_entry))
     entities.append(FlipScreen(spaclient, config_entry))
     entities.append(Reminders(spaclient, config_entry))
     entities.append(M8AI(spaclient, config_entry))
@@ -407,56 +406,6 @@ class StandbyMode(SpaClientDevice, SwitchEntity):
     async def async_turn_off(self, **kwargs):
         """Send the off command."""
         self._spaclient.set_standby_mode()
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return self._spaclient.get_gateway_status()
-
-
-class TempRange(SpaClientDevice, SwitchEntity):
-    """Representation of a Temperature Range switch."""
-
-    def __init__(self, spaclient, config_entry):
-        """Initialise the switch."""
-        super().__init__(spaclient, config_entry)
-        self._spaclient = spaclient
-        self._icon = ICONS.get('Temperature Range')
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID."""
-        return f"{self._spaclient.get_macaddr().replace(':', '')}#temperature_range"
-
-    @property
-    def name(self):
-        """Return the name of the device."""
-        return 'Temperature Range'
-
-    @property
-    def icon(self):
-        """Return the icon of the device."""
-        return self._icon
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes of the device."""
-        attrs = {}
-        attrs["Temperature Range"] = self._spaclient.get_temp_range()
-        return attrs
-
-    @property
-    def is_on(self):
-        """Get whether the switch is in on state."""
-        return self._spaclient.get_temp_range() != "Low"
-
-    async def async_turn_on(self, **kwargs):
-        """Send the on command."""
-        self._spaclient.set_temp_range("High")
-
-    async def async_turn_off(self, **kwargs):
-        """Send the off command."""
-        self._spaclient.set_temp_range("Low")
 
     @property
     def available(self) -> bool:
