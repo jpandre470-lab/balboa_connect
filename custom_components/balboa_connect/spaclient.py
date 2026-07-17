@@ -534,14 +534,17 @@ class spaclient:
 
     async def keep_alive_call(self):
         """Keep-alive task with proper stop handling.
-        Uses configurable interval and dedicated keep-alive frame.
+
+        keepalive_enabled, keepalive_interval, and keepalive_frame_type are
+        re-read live on every iteration, so changing them via the
+        integration options takes effect immediately without needing to
+        reload the integration.
         """
-        if not self.keepalive_enabled:
-            _LOGGER.debug("Keep-alive is disabled")
-            return
-        
-        _LOGGER.debug("Keep-alive task started with interval %s", self.keepalive_interval)
+        _LOGGER.debug("Keep-alive task started")
         while not self._stop_flag:
+            if not self.keepalive_enabled:
+                await asyncio.sleep(1)
+                continue
             try:
                 if self.socket_s is None:
                     # read_all_msg handles fast reconnect; this is a backup

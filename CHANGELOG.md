@@ -20,6 +20,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The standalone "Heat Mode" select entity (`select.py`), now redundant with the thermostat's new preset.
 - The "Temperature Range" switch entity (`switch.py`), replaced by a select entity.
 
+### Fixed
+- Keep-alive and socket options (`keepalive_enabled`, `keepalive_interval`, `keepalive_frame_type`, `socket_timeout`) required a full integration reload to take effect. They are now applied live in `update_listener` when options are changed.
+- The keep-alive task used to check `keepalive_enabled` once before entering its loop; if disabled at startup, the task exited and could never be re-enabled without a reload. The check now happens on every loop iteration.
+- `socket_timeout` was never forwarded to the spa client constructor at all, so the option had no effect regardless of reload. Now wired in correctly (and applied to the live socket immediately if already connected).
+
+### Known limitation noted
+- `scan_interval` still has no effect at all (not just a live-apply issue): every platform hardcodes its own polling interval at module level. Documented in the README as a known limitation for a future iteration.
+
 ## [0.3.0]
 
 **Objective:** Rework entities (heat modes, temperature range, LEDs) and adapt the config flow to all current options.

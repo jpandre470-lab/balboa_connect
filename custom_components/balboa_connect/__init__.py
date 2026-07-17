@@ -75,10 +75,12 @@ async def async_setup_entry(hass, config_entry):
     keepalive_enabled = config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED)
     keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
     keepalive_frame_type = config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE)
+    socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
     spa = spaclient(
         config_entry.data[CONF_HOST],
         keepalive_enabled,
         keepalive_interval,
+        socket_timeout=socket_timeout,
         keepalive_frame_type=keepalive_frame_type,
     )
 
@@ -176,8 +178,21 @@ async def update_listener(hass, config_entry):
         config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
 
+    spa = hass.data[DOMAIN][config_entry.entry_id][SPA]
+
+    # Apply keep-alive / socket options live, so changes take effect
+    # immediately instead of requiring a reload of the integration.
+    spa.keepalive_enabled = config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED)
+    spa.keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
+    spa.keepalive_frame_type = config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE)
+    spa.socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
+    if spa.socket_s is not None:
+        try:
+            spa.socket_s.settimeout(spa.socket_timeout)
+        except OSError as e:
+            _LOGGER.debug("Could not apply socket_timeout to the live socket: %s", e)
+
     if config_entry.options.get(CONF_SYNC_TIME):
-        spa = hass.data[DOMAIN][config_entry.entry_id][SPA]
         entry_data = hass.data[DOMAIN][config_entry.entry_id]
         
         # Cancel existing sync time task if any
