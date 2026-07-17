@@ -534,14 +534,17 @@ class spaclient:
 
     async def keep_alive_call(self):
         """Keep-alive task with proper stop handling.
-        Uses configurable interval and dedicated keep-alive frame.
+
+        keepalive_enabled, keepalive_interval, and keepalive_frame_type are
+        re-read live on every iteration, so changing them via the
+        integration options takes effect immediately without needing to
+        reload the integration.
         """
-        if not self.keepalive_enabled:
-            _LOGGER.debug("Keep-alive is disabled")
-            return
-        
-        _LOGGER.debug("Keep-alive task started with interval %s", self.keepalive_interval)
+        _LOGGER.debug("Keep-alive task started")
         while not self._stop_flag:
+            if not self.keepalive_enabled:
+                await asyncio.sleep(1)
+                continue
             try:
                 if self.socket_s is None:
                     # read_all_msg handles fast reconnect; this is a backup
@@ -1746,9 +1749,21 @@ class spaclient:
         self.send_filter_cycles_config()
 
     def set_heat_mode(self, value):
+        """Set the heat mode (Ready or Rest).
+
+        "Ready in Rest" is a transient state entered automatically by the
+        spa when a pump starts while in Rest mode; it cannot be requested
+        directly (see get_heat_mode() / the "Heat Mode" select entity,
+        which excludes it from the settable options).
+        """
         if self.heat_mode == value:
             return
-        self.send_toggle_message(0x51)
+        # A single toggle only flips the underlying Ready/Rest bit. From
+        # "Ready in Rest", it needs to be sent twice to reliably land on
+        # "Ready" (mirrors pybalboa's HeatModeSpaControl.set_state logic).
+        toggles = 2 if self.heat_mode == "Ready in Rest" and value == "Ready" else 1
+        for _ in range(toggles):
+            self.send_toggle_message(0x51)
         self.heat_mode = value
 
     def set_hold_mode(self, value):

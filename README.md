@@ -36,19 +36,17 @@ Several elements have already been validated (with my spa), but several remain t
 
 Entity | Type | Tested | Description
 ------ | ---- | ------ | -----------
-Spa Thermostat | Climate | ✓ | Full HVAC control with HEAT, COOL, HEAT_COOL modes
+Spa Thermostat | Climate | ✓ | HVAC modes HEAT/OFF (AUTO shown for display only), plus a preset (Ready/Rest/Ready in Rest) showing the spa's own heat mode names directly on the card
 Temperature Scale | Select | ✓ | Fahrenheit, Celsius
 Clock Mode | Select | ✓ | 12 Hour, 24 Hour
 Cleanup Cycle | Select | ✓ | Off, 30-240min intervals
-Heat Mode | Select | ✓ | Ready, Rest, Ready in Rest
 
 ### Pumps & Jets
 
 Entity | Type | Tested | Description
 ------ | ---- | ------ | -----------
 Pump 1-6 | Switch | ✓ | Off, Low, High
-Circulation Pump | Binary Sensor | ✓ | Status
-Circulation Pump Status | Switch | ✓ | On/Off
+Circulation Pump | Binary Sensor | ✓ | Status (only created if detected on your spa)
 
 ### Heating System
 
@@ -57,13 +55,14 @@ Entity | Type | Tested | Description
 Heating State | Sensor | ✓ | Off, Heating, Heat Waiting
 Heating | Binary Sensor | ✓ | Active/Inactive
 Standby Mode | Switch | ✓ | Enable/Disable heating
-Temperature Range | Switch | ✓ | Low, High
+Temperature Range | Select | ✓ | Low, High
 
 ### Lights & Features
 
 Entity | Type | Tested | Description
 ------ | ---- | ------ | -----------
-Light 1-2 | Light | ✓ | On/Off, Brightness
+Light 1-2 | Light | ✓ | On/Off only (no brightness/color support) - created when `light_mode` option is `switch` (default)
+Light 1-2 Color | Select | ✓ | Color palette, selected by rapidly toggling the light a fixed number of times - created when `light_mode` option is `color` instead of the plain Light entities above
 Blower | Switch | ✓ | Off, On
 Mister | Switch | ? | Off, On
 Auxiliary 1-2 | Switch | ? | On/Off
@@ -73,23 +72,27 @@ Auxiliary 1-2 | Switch | ? | On/Off
 Entity | Type | Tested | Description
 ------ | ---- | ------ | -----------
 Filter Cycle 1 Status | Binary Sensor | ✓ | Status
-Filter Cycle 1 Begins/Run | Time | ✓ | Schedule
+Filter Cycle 1 Begins/Runs | Time | ✓ | Schedule
 Filter Cycle 2 Status | Binary Sensor | ✓ | Status
 Filter Cycle 2 | Switch | ✓ | Enable/Disable
-Filter Cycle 2 Begins/Run | Time | ✓ | Schedule
+Filter Cycle 2 Begins/Runs | Time | ✓ | Schedule
 
 ### System Status & Sensors
 
 Entity | Type | Tested | Description
 ------ | ---- | ------ | -----------
 Spa State | Sensor | ✓ | Running, Initializing, Hold, Test
+Spa Time | Sensor | ✓ | Spa's own clock (hour:minute)
 WiFi State | Sensor | ✓ | Connection status
 Reminder | Sensor | ✓ | Service reminders
 Sensor A/B Temperature | Sensor | ✓ | Temperature (°F or °C)
 GFCI Test | Sensor | ✓ | Pass/Fail
-Model | Sensor | ✓ | Spa model
+Last Known Fault | Sensor | ✓ | Decoded human-readable fault message
+Model Name | Sensor | ✓ | Spa model
 Software Version | Sensor | ✓ | Version
-Heater Power | Sensor | ✓ | Power state
+Heater Voltage | Sensor | ✓ | 240V or Unknown
+Heater Type | Sensor | ✓ | Standard or Unknown
+Config Signature | Sensor | ✓ | Configuration signature bytes (diagnostic)
 
 ### System Controls & Settings
 
@@ -98,21 +101,23 @@ Entity | Type | Tested | Description
 Panel Lock | Switch | ✓ | Lock front panel
 Settings Lock | Switch | ✓ | Lock settings menu
 Reminders | Switch | ✓ | Enable/disable
-M8 AI | Switch | ✓ | AI features
+M8 Artificial Intelligence | Switch | ✓ | AI features
+Hold Mode | Switch | ✓ | Pause jets/heater temporarily (e.g. for water testing)
+Flip Screen | Switch | ✓ | Flip the topside panel display
 Priming | Binary Sensor | ✓ | Priming status
 Notification | Binary Sensor | ✓ | Alarm status
 
 ## Heat Mode Mapping
 
-The Spa Thermostat climate entity supports the following HVAC modes, mapped to spa heat modes:
+The Spa Thermostat climate entity maps spa heat modes to HVAC modes and to a preset, following the same approach as the official Home Assistant Core Balboa integration (`pybalboa`):
 
 | HVAC Mode | Spa Heat Mode | Description |
 |-----------|---------------|-------------|
-| HEAT | Ready | Active heating with normal temperature range |
-| COOL | Rest | Heating with lower temperature range |
-| HEAT_COOL | Ready in Rest | Automatic mode |
+| HEAT | Ready | Actively heating to reach the set point (selectable) |
+| OFF | Rest | Heating restricted to filter cycles only (selectable) |
+| AUTO | Ready in Rest | Automatic mode, entered by the spa on its own when a pump starts while in Rest mode (display only - selecting it directly is a no-op, there's no command to force it) |
 
-Additionally, a dedicated **Heat Mode** select entity allows direct selection between Ready, Rest, and Ready in Rest modes.
+The thermostat entity also exposes a **preset** showing the spa's own heat mode names directly on the card ("Ready" / "Rest" / "Ready in Rest"), settable for Ready/Rest (Ready in Rest is display only, same reasoning as above). There is no separate Heat Mode select entity anymore - this preset replaces it.
 
 ## Technical Documentation
 
@@ -126,43 +131,57 @@ Additionally, a dedicated **Heat Mode** select entity allows direct selection be
 2. Receive initial 0x13 status message
 3. Parse all state variables and create Home Assistant entities
 4. Maintain background read loop for status updates
-5. Send keep-alive heartbeat every 30 seconds
+5. Keep-alive is disabled by default (the spa already pushes status updates on its own); if enabled, sends a heartbeat at the configured interval
 6. Process user commands and send appropriate messages with CRC-8 validation
 
 ## Entity Statistics
 
-- **Total Sensors:** 14
-- **Total Binary Sensors:** 5
-- **Total Switches:** 10+
-- **Total Select Entities:** 4 (Temperature Scale, Clock Mode, Cleanup Cycle, Heat Mode)
-- **Climate Entities:** 1 (Spa Thermostat with HEAT/COOL/HEAT_COOL modes)
-- **Light Entities:** 2
-- **Time Entities:** 5
+- **Total Sensors:** 14 (Last Known Fault, Heating State, Spa State, Spa Time, WiFi State, Reminder, Sensor A/B Temperature, GFCI Test, Model Name, Software Version, Heater Voltage, Heater Type, Config Signature)
+- **Total Binary Sensors:** 5, or 6 if the Circulation Pump binary sensor is detected on your spa
+- **Total Switches:** 10 fixed (Blower, Mister, Filter Cycle 2, Hold Mode, Flip Screen, Standby Mode, Reminders, M8 Artificial Intelligence, Panel Lock, Settings Lock) + 1 per detected pump (up to 6) + 1 per detected auxiliary (up to 2), depending on your spa's hardware
+- **Total Select Entities:** 4 (Temperature Scale, Clock Mode, Cleanup Cycle, Temperature Range), + 2 Light Color selects instead of Light entities if `light_mode` is `color`
+- **Climate Entities:** 1 (Spa Thermostat: HVAC HEAT/OFF/AUTO + preset Ready/Rest/Ready in Rest)
+- **Light Entities:** 2 (only when `light_mode` is `switch`, the default)
+- **Time Entities:** 4 (Filter Cycle 1/2 Begins/Runs)
 
 ## Key Features
 
 ### Climate/Thermostat Control
-- **Multi-mode HVAC:** HEAT (Ready), COOL (Rest), HEAT_COOL (Ready in Rest)
+- **HVAC modes:** HEAT (Ready) and OFF (Rest) are selectable; AUTO (Ready in Rest) is shown for display only when the spa enters it on its own
+- **Preset:** the spa's own heat mode names ("Ready" / "Rest" / "Ready in Rest") directly on the thermostat card
 - **Heating State Monitoring:** Real-time tracking (Off, Heating, Heat Waiting)
 - **Temperature Setpoint:** Full control of target water temperature
 - **Unit Conversion:** Automatic handling of Fahrenheit/Celsius
-
-### Direct Heat Mode Control
-- **Heat Mode Select Entity:** Direct selection between Ready, Rest, Ready in Rest
-- **Flexible Control:** Use either Climate entity or Heat Mode select
 
 ### Comprehensive Status Monitoring
 - **Spa State Sensor:** Running, Initializing, Hold, or Test mode
 - **WiFi State Sensor:** Real-time connection status
 - **Temperature Sensors:** Separate sensors for Sensor A and B
+- **Last Known Fault:** decoded human-readable fault message, not just a raw code
 
 ### Reliability & Protocol Support
 - **CRC-8 Validation:** All messages validated with proper checksum
 - **Variable Message Lengths:** Support for different spa models
-- **Async Socket Communication:** Non-blocking with keep-alive
+- **Async Socket Communication:** Non-blocking, keep-alive optional (disabled by default) and applied live without needing a reload
 - **Automatic Reconnection:** Graceful handling of network interruptions
 
+## Known Limitations
+
+- **`scan_interval` option has no effect.** Every platform file (`sensor.py`, `switch.py`, etc.) hardcodes `SCAN_INTERVAL = timedelta(seconds=1)` at module level, ignoring the configured value entirely - even after a reload. Fixing this properly would need a shared update coordinator or a per-entity override, which is a larger architectural change on its own.
+- **Select/preset state values are not translated.** Config flow field labels are translated (en/fr/nb), but the state values themselves (e.g. `Ready`, `Rest`, `Ready in Rest`, `Low`, `High`, `30 min`) are always shown in English, since they are used directly as internal values rather than translation keys. Fixing this for real would mean switching every select/preset to stable snake_case keys (`ready`, `rest`, ...) plus a `state_attributes` translation block per entity, across all select entities consistently - a dedicated iteration on its own.
+
 ## Version History
+
+### v0.3.1 (In Development)
+- **Objective:** Align the heat mode / HVAC mode mapping with the official Home Assistant Core Balboa integration
+- `Rest` now maps to `HVACMode.OFF` instead of `COOL` (a spa never actively cools, so `COOL` was misleading; `OFF` matches `pybalboa`/HA Core's own mapping)
+- `Ready in Rest` now maps to `HVACMode.AUTO`. Unlike the official HA Core integration, `AUTO` is kept in `hvac_modes` (not removed) so the thermostat card correctly reflects the state when the spa enters "Ready in Rest" on its own — but it still can't be selected directly (doing so is a no-op, since there's no command to force that state)
+- The "Heat Mode" select entity no longer offers "Ready in Rest" as a settable option (it can still be *displayed* when active), fixing a bug where selecting it only sent a blind Ready/Rest toggle instead of actually reaching that state
+- `set_heat_mode()` now sends the toggle command twice when transitioning from "Ready in Rest" to "Ready", to reliably land on the requested state (mirrors `pybalboa`'s `HeatModeSpaControl.set_state` logic)
+- The thermostat entity now also exposes a **preset** (`ClimateEntityFeature.PRESET_MODE`) showing the spa's own heat mode names directly on the card ("Ready" / "Rest" / "Ready in Rest"), alongside the HVAC mode. The standalone "Heat Mode" select entity has been removed, as it's now redundant with this preset
+- The "Temperature Range" switch has been converted to a select entity with two options (`Low` / `High`), for consistency with the other select-based settings
+- **Fixed: keep-alive and socket options required a full integration reload to take effect.** `keepalive_enabled`, `keepalive_interval`, `keepalive_frame_type`, and `socket_timeout` are now applied live when options are changed - no reload needed. Also fixed `socket_timeout` never being forwarded to the spa client at all (a pre-existing bug found while investigating this)
+- Full README audit: entity tables, Heat Mode Mapping section, and Entity Statistics were still describing the pre-0.3.0/0.3.1 state (old switch-based Temperature Range, old HEAT/COOL/HEAT_COOL mapping, a "Heat Mode" select and a "Circulation Pump Status" switch that no longer/never existed, wrong sensor names). All corrected to match the actual current code.
 
 ### v0.3.0 (In Development)
 - **Objective:** Rework entities (heat modes, temperature range, LEDs) and adapt the config flow to all current options

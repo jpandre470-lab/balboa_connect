@@ -39,7 +39,7 @@ CLEANUP_CYCLE_OPTIONS = [
     "240 min",
 ]
 
-HEAT_MODE_OPTIONS = ["Ready", "Rest", "Ready in Rest"]
+TEMP_RANGE_OPTIONS = ["Low", "High"]
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -51,7 +51,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entities.append(TemperatureScale(spaclient, config_entry))
     entities.append(ClockMode(spaclient, config_entry))
     entities.append(CleanupCycle(spaclient, config_entry))
-    entities.append(HeatMode(spaclient, config_entry))
+    entities.append(TempRange(spaclient, config_entry))
 
     # Light color selects only apply in "color" mode. In "switch" mode, the
     # same lights are exposed as plain on/off lights instead (light.py).
@@ -186,22 +186,22 @@ class CleanupCycle(SpaClientDevice, SelectEntity):
         return self._spaclient.get_gateway_status()
 
 
-class HeatMode(SpaClientDevice, SelectEntity):
-    """Representation of the Heat Mode select."""
+class TempRange(SpaClientDevice, SelectEntity):
+    """Representation of the Temperature Range select (Low / High)."""
 
     def __init__(self, spaclient, config_entry):
         """Initialize the device."""
         super().__init__(spaclient, config_entry)
         self._spaclient = spaclient
-        self._icon = ICONS.get('Heat Mode')
+        self._icon = ICONS.get('Temperature Range')
 
     @property
     def unique_id(self) -> str:
-        return f"{self._spaclient.get_macaddr().replace(':', '')}#heat_mode"
+        return f"{self._spaclient.get_macaddr().replace(':', '')}#temperature_range"
 
     @property
     def name(self):
-        return 'Heat Mode'
+        return 'Temperature Range'
 
     @property
     def icon(self):
@@ -209,15 +209,15 @@ class HeatMode(SpaClientDevice, SelectEntity):
 
     @property
     def options(self):
-        return HEAT_MODE_OPTIONS
+        return TEMP_RANGE_OPTIONS
 
     @property
     def current_option(self):
-        return self._spaclient.get_heat_mode()
+        return self._spaclient.get_temp_range()
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
-        self._spaclient.set_heat_mode(option)
+        self._spaclient.set_temp_range(option)
 
     @property
     def available(self) -> bool:

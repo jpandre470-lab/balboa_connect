@@ -4,7 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] - v0.3.0 (In Development)
+## [Unreleased] - v0.3.1 (In Development)
+
+**Objective:** Align the heat mode / HVAC mode mapping with the official Home Assistant Core Balboa integration.
+
+### Changed
+- `Rest` now maps to `HVACMode.OFF` instead of `COOL` (a spa never actively cools; `OFF` matches `pybalboa`/HA Core's own mapping).
+- `Ready in Rest` now maps to `HVACMode.AUTO` (was `HEAT_COOL`). Unlike the official HA Core integration, `AUTO` is kept in `hvac_modes` (now `[HEAT, OFF, AUTO]`) so the thermostat card reflects the state when the spa enters "Ready in Rest" on its own; selecting it directly remains a no-op since there's no command to force that state.
+- The "Heat Mode" select entity no longer offers "Ready in Rest" as a settable option, fixing a bug where selecting it only sent a blind Ready/Rest toggle instead of actually reaching that state.
+- `set_heat_mode()` now sends the toggle command twice when transitioning from "Ready in Rest" to "Ready", to reliably land on the requested state (mirrors `pybalboa`'s `HeatModeSpaControl.set_state` logic).
+- The thermostat entity now also exposes a preset (`ClimateEntityFeature.PRESET_MODE`) showing the spa's own heat mode names directly on the card ("Ready" / "Rest" / "Ready in Rest"), alongside the HVAC mode.
+- The "Temperature Range" switch has been converted to a select entity (`Low` / `High`), for consistency with the other select-based settings.
+
+### Removed
+- The standalone "Heat Mode" select entity (`select.py`), now redundant with the thermostat's new preset.
+- The "Temperature Range" switch entity (`switch.py`), replaced by a select entity.
+
+### Fixed
+- Keep-alive and socket options (`keepalive_enabled`, `keepalive_interval`, `keepalive_frame_type`, `socket_timeout`) required a full integration reload to take effect. They are now applied live in `update_listener` when options are changed.
+- The keep-alive task used to check `keepalive_enabled` once before entering its loop; if disabled at startup, the task exited and could never be re-enabled without a reload. The check now happens on every loop iteration.
+- `socket_timeout` was never forwarded to the spa client constructor at all, so the option had no effect regardless of reload. Now wired in correctly (and applied to the live socket immediately if already connected).
+
+### Known limitation noted
+- `scan_interval` still has no effect at all (not just a live-apply issue): every platform hardcodes its own polling interval at module level. Documented in the README as a known limitation for a future iteration.
+
+## [0.3.0]
 
 **Objective:** Rework entities (heat modes, temperature range, LEDs) and adapt the config flow to all current options.
 
