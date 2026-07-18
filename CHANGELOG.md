@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] - v0.3.1 (In Development)
+## [Unreleased] - v0.3.2 (In Development)
+
+**Objective:** Fix three connection-reliability bugs found while diagnosing recurring disconnections.
+
+### Fixed
+- **Idle watchdog:** the connection is now considered stale if no data at all has been received from the spa for longer than `socket_timeout`, and a reconnect is forced proactively (checked every second in `keep_alive_call`), instead of only detecting a stale connection once the low-level socket `recv()` call itself times out.
+- **Keep-alive reply verification:** when `keepalive_frame_type` is `existing_client_request`, a Module Identification Response is now required within a short window (`min(10s, keepalive_interval)`) after sending the keep-alive frame. If none arrives, a reconnect is forced instead of assuming the connection is fine just because the TX write succeeded.
+- **Duplicated `sync_time`/option-apply logs:** a failed connection attempt used to register the options-update listener *before* the connection was validated. Since Home Assistant automatically retries a failed `async_setup_entry`, every failed attempt left one more listener behind, never unsubscribed (unloading never runs for an attempt that never finished setting up). A single later options change would then fire all of them at once. The listener (and `hass.data` entry) is now only registered after a successful connection.
+
+### Removed
+- Two unused, dead constants (`SOCKET_TIMEOUT`, `MAX_RETRIES`) in `spaclient.py`, left over from an earlier version and never actually referenced (the real, configurable timeout is the `self.socket_timeout` instance attribute).
+
+## [0.3.1]
 
 **Objective:** Align the heat mode / HVAC mode mapping with the official Home Assistant Core Balboa integration.
 
