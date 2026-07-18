@@ -4,6 +4,7 @@ import concurrent.futures
 import homeassistant.util.dt as dt_util
 import logging
 import socket
+import time
 
 # Import the device class from the component that you want to support
 from .const import (
@@ -18,10 +19,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 from threading import Lock
 
 # Constants for timeouts and retries
-# 15s timeout: Balboa sends status every ~1s, so 15s only triggers on real outages
-SOCKET_TIMEOUT = 15
 REQUEST_TIMEOUT = 30  # Maximum time to wait for a response
-MAX_RETRIES = 3
 RECONNECT_DELAY = 5
 
 
@@ -338,6 +336,13 @@ class spaclient:
         self._rx_last_decoded = None
         self._rx_repeat_count = 0
 
+        """ Connection liveness tracking (independent of the low-level
+        blocking recv() timeout, so a stale connection can be detected and
+        logged proactively rather than only after a full socket_timeout
+        with zero bytes received at all). """
+        self._last_rx_time = None
+        self._last_keepalive_response_time = None
+
         """ Status update variables """
         self.hold_mode = 0
         self.priming = 0
@@ -521,6 +526,11 @@ class spaclient:
                 pass
             self.socket_s = None
         self.socket_is_connected = False
+        # Reset liveness tracking so the watchdog doesn't immediately judge
+        # the next connection stale based on timestamps from before this
+        # reconnect.
+        self._last_rx_time = None
+        self._last_keepalive_response_time = None
 
     async def _reconnect_and_reinit(self):
         """Reconnect socket and send a keep-alive ping to resume spa comms."""
@@ -532,38 +542,87 @@ class spaclient:
             await self.send_fault_log_request()
         return connected
 
+    async def _wait_for_keepalive_response(self, previous_value, timeout=10):
+        """Wait until a fresh Module Identification Response (0x94) is received.
+
+        Used to confirm the WiFi module actually replied to an
+        existing_client_request keep-alive, instead of assuming the
+        connection is alive just because the TCP write succeeded.
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._last_keepalive_response_time != previous_value:
+                return True
+            await asyncio.sleep(0.5)
+        return False
+
     async def keep_alive_call(self):
-        """Keep-alive task with proper stop handling.
+        """Keep-alive and connection watchdog task.
+
+        Ticks every second so two independent concerns stay responsive
+        regardless of keepalive_interval:
+        - Idle watchdog: if no data at all has been received from the spa
+          for longer than socket_timeout, the connection is considered
+          stale and a reconnect is forced, instead of only finding out
+          once the low-level blocking socket recv() itself times out.
+        - Active keep-alive (opt-in): sent every keepalive_interval. For
+          "existing_client_request", the module's reply is verified within
+          a short window; if it never arrives, the connection is
+          considered stale too and a reconnect is forced.
 
         keepalive_enabled, keepalive_interval, and keepalive_frame_type are
         re-read live on every iteration, so changing them via the
         integration options takes effect immediately without needing to
         reload the integration.
         """
-        _LOGGER.debug("Keep-alive task started")
+        _LOGGER.debug("Keep-alive/watchdog task started")
+        next_keepalive_at = 0
+        WATCHDOG_TICK = 1
         while not self._stop_flag:
-            if not self.keepalive_enabled:
-                await asyncio.sleep(1)
-                continue
             try:
+                now = time.monotonic()
+
+                if (
+                    self.socket_s is not None
+                    and self._last_rx_time is not None
+                    and now - self._last_rx_time > self.socket_timeout
+                ):
+                    _LOGGER.warning(
+                        "No data received from the spa for over %ds (socket_timeout), forcing a reconnect",
+                        self.socket_timeout,
+                    )
+                    await self._close_socket()
+
                 if self.socket_s is None:
                     # read_all_msg handles fast reconnect; this is a backup
-                    _LOGGER.debug("Keep-alive: socket is None, backup reconnect attempt")
                     connected = await self._reconnect_and_reinit()
-                    if not connected:
-                        _LOGGER.warning("Keep-alive: reconnection failed, will retry")
+                    if connected:
+                        next_keepalive_at = time.monotonic() + self.keepalive_interval
+                    else:
                         await asyncio.sleep(RECONNECT_DELAY)
                         continue
-                else:
+                elif self.keepalive_enabled and now >= next_keepalive_at:
+                    before = self._last_keepalive_response_time
                     await self.send_keepalive()
+                    if self.keepalive_frame_type == KEEPALIVE_FRAME_EXISTING_CLIENT:
+                        confirmed = await self._wait_for_keepalive_response(
+                            before, timeout=min(10, self.keepalive_interval)
+                        )
+                        if not confirmed:
+                            _LOGGER.warning(
+                                "Keep-alive: no reply from the WiFi module to the "
+                                "existing_client_request frame, forcing a reconnect"
+                            )
+                            await self._close_socket()
+                    next_keepalive_at = time.monotonic() + self.keepalive_interval
             except asyncio.CancelledError:
-                _LOGGER.debug("Keep-alive task cancelled")
+                _LOGGER.debug("Keep-alive/watchdog task cancelled")
                 break
             except Exception as e:
                 _LOGGER.error("Error in keep_alive_call: %s", e)
                 await self._close_socket()
-            await asyncio.sleep(self.keepalive_interval)
-        _LOGGER.debug("Keep-alive task stopped")
+            await asyncio.sleep(WATCHDOG_TICK)
+        _LOGGER.debug("Keep-alive/watchdog task stopped")
 
     def compute_checksum(self, length, payload):
         crc = 0xb5
@@ -777,6 +836,12 @@ class spaclient:
         if chunk is None or len(chunk) < 3:
             return True
 
+        # Any valid chunk proves the connection is alive, regardless of its
+        # type - this is the liveness timer used by the idle watchdog in
+        # keep_alive_call(), independent of the low-level socket recv()
+        # timeout.
+        self._last_rx_time = time.monotonic()
+
         self._log_rx_frame(chunk)
             
         if chunk != self.status_chunk_array:
@@ -846,12 +911,16 @@ class spaclient:
                     _LOGGER.warning("Error parsing configuration: %s", e)
                 return True
 
-            if chunk[0:3] == b'\x0a\xbf\x94' and self.module_identification_loaded != True:
-                #_LOGGER.info("Module identification response = %s", chunk[3:]) #Validation point
-                try:
-                    self.parse_module_identification_response(chunk[3:])
-                except Exception as e:
-                    _LOGGER.warning("Error parsing module identification: %s", e)
+            if chunk[0:3] == b'\x0a\xbf\x94':
+                # This response is also the proof-of-life for the
+                # existing_client_request keep-alive frame - record it every
+                # time, not just on first load (see keep_alive_call()).
+                self._last_keepalive_response_time = time.monotonic()
+                if not self.module_identification_loaded:
+                    try:
+                        self.parse_module_identification_response(chunk[3:])
+                    except Exception as e:
+                        _LOGGER.warning("Error parsing module identification: %s", e)
                 return True
 
         return True

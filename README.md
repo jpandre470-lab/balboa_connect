@@ -172,6 +172,13 @@ The thermostat entity also exposes a **preset** showing the spa's own heat mode 
 
 ## Version History
 
+### v0.3.2 (In Development)
+- **Objective:** Fix three connection-reliability bugs found while diagnosing recurring disconnections
+- **Idle watchdog:** the connection is now considered stale if no data at all has been received from the spa for longer than `socket_timeout`, and a reconnect is forced proactively - instead of only detecting this once the low-level socket `recv()` call itself times out (which could silently take up to the full configured `socket_timeout`, e.g. an hour, to recover)
+- **Keep-alive reply verification:** when `keepalive_frame_type` is `existing_client_request`, the integration now actually checks that the WiFi module replies (Module Identification Response) within a short window; if it doesn't, a reconnect is forced instead of assuming the connection is fine just because the TX write succeeded
+- **Fixed a leak causing duplicated `sync_time`/option-apply logs:** a failed connection attempt used to register an options-update listener *before* the connection was validated. Since Home Assistant automatically retries a failed setup, every failed attempt left one more listener behind that was never unsubscribed - so a single later options change would fire all of them at once (visible as dozens of duplicate log lines and duplicate `Set Time` commands sent in the same instant). The listener is now only registered after a successful connection
+- Removed two unused, dead constants (`SOCKET_TIMEOUT`, `MAX_RETRIES`) left over in `spaclient.py` that were never actually used (the real, configurable timeout is the `self.socket_timeout` instance attribute)
+
 ### v0.3.1 (In Development)
 - **Objective:** Align the heat mode / HVAC mode mapping with the official Home Assistant Core Balboa integration
 - `Rest` now maps to `HVACMode.OFF` instead of `COOL` (a spa never actively cools, so `COOL` was misleading; `OFF` matches `pybalboa`/HA Core's own mapping)

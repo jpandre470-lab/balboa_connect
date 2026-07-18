@@ -88,34 +88,49 @@ async def async_setup_entry(hass, config_entry):
     # spaclient.py (send_message / _send_message_async / _process_chunk),
     # so no wrapper is needed here anymore.
 
+    # IMPORTANT: hass.data and the update listener are only registered
+    # AFTER a successful connection below. Registering them earlier (as
+    # this used to do) meant every failed attempt - and HA retries
+    # async_setup_entry automatically on ConfigEntryNotReady - leaked one
+    # more update listener that was never unsubscribed, since unloading
+    # never runs for an attempt that never finished setting up. Repeated
+    # connection failures (the very disconnection issue this integration
+    # exists to fix) could silently accumulate dozens of stale listeners
+    # this way, each of which fires on every future options change.
+    try:
+        # Development mode: comment out the whole try block below (through
+        # send_module_identification_request) to bypass the real spa
+        # connection during development.
+        connected = await spa.validate_connection()
+
+        if not connected:
+            _LOGGER.error("Failed to connect to spa at %s", config_entry.data[CONF_HOST])
+            await spa.stop()
+            raise ConfigEntryNotReady
+
+        await spa.send_additional_information_request()
+        await spa.send_configuration_request()
+        await spa.send_fault_log_request()
+        await spa.send_filter_cycles_request()
+        await spa.send_gfci_test_request()
+        await spa.send_information_request()
+        await spa.send_preferences_request()
+        await spa.send_module_identification_request()
+
+    except ConfigEntryNotReady:
+        raise
+    except Exception as e:
+        _LOGGER.error("Error during spa initialization: %s", e)
+        await spa.stop()
+        raise ConfigEntryNotReady from e
+
     hass.data[DOMAIN][config_entry.entry_id] = {
-        SPA: spa, 
+        SPA: spa,
         DATA_LISTENER: [config_entry.add_update_listener(update_listener)],
         DATA_KEEP_ALIVE_TASK: None,
         DATA_READ_MSG_TASK: None,
         DATA_SYNC_TIME_TASK: None,
     }
-
-    try:
-        connected = await spa.validate_connection()     #To switch to development mode, comment out this line
-
-        if not connected:                               #To switch to development mode, comment out this line
-            _LOGGER.error("Failed to connect to spa at %s", config_entry.data[CONF_HOST])
-            raise ConfigEntryNotReady                   #To switch to development mode, comment out this line
-
-        await spa.send_additional_information_request() #To switch to development mode, comment out this line
-        await spa.send_configuration_request()          #To switch to development mode, comment out this line
-        await spa.send_fault_log_request()              #To switch to development mode, comment out this line
-        await spa.send_filter_cycles_request()          #To switch to development mode, comment out this line
-        await spa.send_gfci_test_request()              #To switch to development mode, comment out this line
-        await spa.send_information_request()            #To switch to development mode, comment out this line
-        await spa.send_preferences_request()            #To switch to development mode, comment out this line
-        await spa.send_module_identification_request()  #To switch to development mode, comment out this line
-        
-    except Exception as e:
-        _LOGGER.error("Error during spa initialization: %s", e)
-        await spa.stop()
-        raise ConfigEntryNotReady from e
 
     await update_listener(hass, config_entry)
 
