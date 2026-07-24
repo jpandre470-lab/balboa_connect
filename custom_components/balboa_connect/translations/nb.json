@@ -29,16 +29,23 @@
                     "keepalive_interval": "Keep-alive-intervall (sekunder)",
                     "keepalive_frame_type": "Keep-alive-rammetype: \"existing_client_request\" (standard, f\u00e5r et reelt svar fra WiFi-modulen) eller \"minimal\" (stille ramme, uten svar)",
                     "socket_timeout": "Socket-tidsavbrudd (sekunder)",
+                    "reconnect_backoff_mode": "Tilkoblingsforsinkelsesmodus: \"exponential\" (5s opptil 300s) eller \"fixed\" (konstant forsinkelse)",
+                    "reconnect_fixed_delay": "Fast tilkoblingsforsinkelse (sekunder, brukes kun n\u00e5r modusen over er \"fixed\")",
                     "light_mode": "Lysstyringsmodus"
                 }
             },
             "led_palette": {
                 "description": "N\u00e5v\u00e6rende palett:\n{palette}",
                 "data": {
-                    "led_delay_on": "Forsinkelse mens lyset er p\u00e5 under en fargesyklus-puls (ms)",
-                    "led_delay_off": "Forsinkelse mens lyset er av under en fargesyklus-puls (ms)",
-                    "led_delay_reset": "Forsinkelse for \u00e5 tilbakestille fargesyklusen til den f\u00f8rste fargen (sekunder)",
+                    "led_delay_on": "P\u00e5-forsinkelse (ms)",
+                    "led_delay_off": "Av-forsinkelse (ms)",
+                    "led_delay_reset": "Tilbakestillingsforsinkelse (sekunder)",
                     "action": "Handling"
+                },
+                "data_description": {
+                    "led_delay_on": "Hvor lenge lyset er p\u00e5 under en fargesyklus-puls",
+                    "led_delay_off": "Hvor lenge lyset er av under en fargesyklus-puls",
+                    "led_delay_reset": "Hvor lenge man venter f\u00f8r fargesyklusen tilbakestilles til den f\u00f8rste fargen"
                 }
             },
             "led_edit": {

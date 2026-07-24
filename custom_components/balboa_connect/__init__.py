@@ -13,6 +13,10 @@ from .const import (
     DEFAULT_KEEPALIVE_ENABLED,
     DEFAULT_KEEPALIVE_INTERVAL,
     DEFAULT_KEEPALIVE_FRAME_TYPE,
+    CONF_RECONNECT_BACKOFF_MODE,
+    CONF_RECONNECT_FIXED_DELAY,
+    DEFAULT_RECONNECT_BACKOFF_MODE,
+    DEFAULT_RECONNECT_FIXED_DELAY,
     _LOGGER,
     CONF_SYNC_TIME,
     DATA_LISTENER,
@@ -35,7 +39,6 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_SCAN_INTERVAL,
 )
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity import Entity
 
 
@@ -76,53 +79,21 @@ async def async_setup_entry(hass, config_entry):
     keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
     keepalive_frame_type = config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE)
     socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
+    reconnect_backoff_mode = config_entry.options.get(CONF_RECONNECT_BACKOFF_MODE, DEFAULT_RECONNECT_BACKOFF_MODE)
+    reconnect_fixed_delay = config_entry.options.get(CONF_RECONNECT_FIXED_DELAY, DEFAULT_RECONNECT_FIXED_DELAY)
     spa = spaclient(
         config_entry.data[CONF_HOST],
         keepalive_enabled,
         keepalive_interval,
         socket_timeout=socket_timeout,
         keepalive_frame_type=keepalive_frame_type,
+        reconnect_backoff_mode=reconnect_backoff_mode,
+        reconnect_fixed_delay=reconnect_fixed_delay,
     )
 
     # Outbound and inbound frame logging is now handled natively inside
     # spaclient.py (send_message / _send_message_async / _process_chunk),
     # so no wrapper is needed here anymore.
-
-    # IMPORTANT: hass.data and the update listener are only registered
-    # AFTER a successful connection below. Registering them earlier (as
-    # this used to do) meant every failed attempt - and HA retries
-    # async_setup_entry automatically on ConfigEntryNotReady - leaked one
-    # more update listener that was never unsubscribed, since unloading
-    # never runs for an attempt that never finished setting up. Repeated
-    # connection failures (the very disconnection issue this integration
-    # exists to fix) could silently accumulate dozens of stale listeners
-    # this way, each of which fires on every future options change.
-    try:
-        # Development mode: comment out the whole try block below (through
-        # send_module_identification_request) to bypass the real spa
-        # connection during development.
-        connected = await spa.validate_connection()
-
-        if not connected:
-            _LOGGER.error("Failed to connect to spa at %s", config_entry.data[CONF_HOST])
-            await spa.stop()
-            raise ConfigEntryNotReady
-
-        await spa.send_additional_information_request()
-        await spa.send_configuration_request()
-        await spa.send_fault_log_request()
-        await spa.send_filter_cycles_request()
-        await spa.send_gfci_test_request()
-        await spa.send_information_request()
-        await spa.send_preferences_request()
-        await spa.send_module_identification_request()
-
-    except ConfigEntryNotReady:
-        raise
-    except Exception as e:
-        _LOGGER.error("Error during spa initialization: %s", e)
-        await spa.stop()
-        raise ConfigEntryNotReady from e
 
     hass.data[DOMAIN][config_entry.entry_id] = {
         SPA: spa,
@@ -134,16 +105,25 @@ async def async_setup_entry(hass, config_entry):
 
     await update_listener(hass, config_entry)
 
-    # Create and store task references so we can cancel them on unload
+    # The connection (initial or after any later drop) is now entirely
+    # handled by our own background tasks, using a single, user-configured
+    # backoff (see spaclient.py: keep_alive_call / read_all_msg /
+    # _attempt_reconnect_with_backoff / _reconnect_and_reinit). We no
+    # longer block setup waiting for the first connection, nor raise
+    # ConfigEntryNotReady if it's not immediately reachable - Home
+    # Assistant's own retry schedule for that is a separate, fixed,
+    # uncontrollable exponential backoff we have no say over. Instead,
+    # setup always succeeds immediately: entities are created right away
+    # and simply report "unavailable" (via get_gateway_status()) until the
+    # connection succeeds, exactly like any later reconnect.
     keep_alive_task = hass.loop.create_task(spa.keep_alive_call())
     read_msg_task = hass.loop.create_task(spa.read_all_msg())
-    
+
     hass.data[DOMAIN][config_entry.entry_id][DATA_KEEP_ALIVE_TASK] = keep_alive_task
     hass.data[DOMAIN][config_entry.entry_id][DATA_READ_MSG_TASK] = read_msg_task
 
     await hass.config_entries.async_forward_entry_setups(config_entry, SPACLIENT_COMPONENTS)
 
-    spa.print_variables()
     return True
 
 
@@ -184,23 +164,28 @@ async def update_listener(hass, config_entry):
 
     _LOGGER.info(
         "Balboa Connect options: sync_time=%s, keepalive_enabled=%s, keepalive_interval=%s, "
-        "keepalive_frame_type=%s, socket_timeout=%s, scan_interval=%s",
+        "keepalive_frame_type=%s, socket_timeout=%s, scan_interval=%s, "
+        "reconnect_backoff_mode=%s, reconnect_fixed_delay=%s",
         config_entry.options.get(CONF_SYNC_TIME, False),
         config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED),
         config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL),
         config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE),
         config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT),
         config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        config_entry.options.get(CONF_RECONNECT_BACKOFF_MODE, DEFAULT_RECONNECT_BACKOFF_MODE),
+        config_entry.options.get(CONF_RECONNECT_FIXED_DELAY, DEFAULT_RECONNECT_FIXED_DELAY),
     )
 
     spa = hass.data[DOMAIN][config_entry.entry_id][SPA]
 
-    # Apply keep-alive / socket options live, so changes take effect
-    # immediately instead of requiring a reload of the integration.
+    # Apply keep-alive / socket / reconnect options live, so changes take
+    # effect immediately instead of requiring a reload of the integration.
     spa.keepalive_enabled = config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED)
     spa.keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
     spa.keepalive_frame_type = config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE)
     spa.socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
+    spa.reconnect_backoff_mode = config_entry.options.get(CONF_RECONNECT_BACKOFF_MODE, DEFAULT_RECONNECT_BACKOFF_MODE)
+    spa.reconnect_fixed_delay = config_entry.options.get(CONF_RECONNECT_FIXED_DELAY, DEFAULT_RECONNECT_FIXED_DELAY)
     if spa.socket_s is not None:
         try:
             spa.socket_s.settimeout(spa.socket_timeout)
