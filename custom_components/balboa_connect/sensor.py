@@ -29,6 +29,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entities.append(SpaHeaterVoltage(spaclient, config_entry))
     entities.append(SpaHeaterType(spaclient, config_entry))
     entities.append(SpaConfigSignature(spaclient, config_entry))
+    entities.append(SpaNextReconnect(spaclient, config_entry))
 
     async_add_entities(entities, True)
 
@@ -526,3 +527,55 @@ class SpaConfigSignature(SpaClientDevice, SensorEntity):
     @property
     def available(self) -> bool:
         return self._spaclient.get_gateway_status()
+
+
+class SpaNextReconnect(SpaClientDevice, SensorEntity):
+    """Representation of the next scheduled reconnect attempt.
+
+    Diagnostic sensor letting the configured reconnect_backoff_mode
+    (fixed vs exponential) be verified visually: Home Assistant's own
+    "retrying" countdown isn't available to us anymore since the
+    integration no longer raises ConfigEntryNotReady (see __init__.py) -
+    connection is fully handled by our own background tasks instead.
+    """
+
+    def __init__(self, spaclient, config_entry):
+        super().__init__(spaclient, config_entry)
+        self._spaclient = spaclient
+
+    @property
+    def unique_id(self) -> str:
+        return f"{self._spaclient.get_macaddr().replace(':', '')}#next_reconnect"
+
+    @property
+    def name(self):
+        return 'Next Reconnect Attempt'
+
+    @property
+    def icon(self):
+        return "mdi:lan-connect" if self._spaclient.get_gateway_status() else "mdi:lan-pending"
+
+    @property
+    def device_class(self):
+        return SensorDeviceClass.TIMESTAMP
+
+    @property
+    def native_value(self):
+        return self._spaclient.get_next_reconnect_at()
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "reconnect_backoff_mode": self._spaclient.reconnect_backoff_mode,
+            "consecutive_failed_attempts": self._spaclient.get_reconnect_tries(),
+        }
+
+    @property
+    def entity_category(self):
+        return EntityCategory.DIAGNOSTIC
+
+    @property
+    def available(self) -> bool:
+        # Always available, even while the spa itself is unreachable -
+        # this sensor is about the connection process itself, not spa data.
+        return True

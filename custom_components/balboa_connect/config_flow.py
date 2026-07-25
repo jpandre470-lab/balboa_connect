@@ -1,6 +1,7 @@
 """Config flow for Balboa Connect integration."""
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from homeassistant.helpers import selector
 
 # Import the device class from the component that you want to support
 from .const import (
@@ -10,6 +11,8 @@ from .const import (
     CONF_KEEPALIVE_INTERVAL,
     CONF_KEEPALIVE_FRAME_TYPE,
     CONF_SOCKET_TIMEOUT,
+    CONF_RECONNECT_BACKOFF_MODE,
+    CONF_RECONNECT_FIXED_DELAY,
     CONF_LED_COLORS,
     CONF_LED_DELAY_OFF,
     CONF_LED_DELAY_ON,
@@ -20,6 +23,8 @@ from .const import (
     DEFAULT_KEEPALIVE_INTERVAL,
     DEFAULT_KEEPALIVE_FRAME_TYPE,
     DEFAULT_SOCKET_TIMEOUT,
+    DEFAULT_RECONNECT_BACKOFF_MODE,
+    DEFAULT_RECONNECT_FIXED_DELAY,
     DEFAULT_LED_COLORS,
     DEFAULT_LED_DELAY_OFF,
     DEFAULT_LED_DELAY_ON,
@@ -27,6 +32,9 @@ from .const import (
     DEFAULT_LIGHT_MODE,
     DOMAIN,
     KEEPALIVE_FRAME_TYPES,
+    RECONNECT_BACKOFF_MODES,
+    MIN_RECONNECT_FIXED_DELAY,
+    MAX_RECONNECT_FIXED_DELAY,
     LED_COLOR_CYCLES,
     LED_COLOR_NAME,
     LED_COLOR_RGB,
@@ -166,6 +174,21 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT),
                 ),
                 vol.Optional(
+                    CONF_RECONNECT_BACKOFF_MODE,
+                    default=self.config_entry.options.get(
+                        CONF_RECONNECT_BACKOFF_MODE, DEFAULT_RECONNECT_BACKOFF_MODE
+                    ),
+                ): vol.In(RECONNECT_BACKOFF_MODES),
+                vol.Optional(
+                    CONF_RECONNECT_FIXED_DELAY,
+                    default=self.config_entry.options.get(
+                        CONF_RECONNECT_FIXED_DELAY, DEFAULT_RECONNECT_FIXED_DELAY
+                    ),
+                ): vol.All(
+                    cv.positive_int,
+                    vol.Clamp(min=MIN_RECONNECT_FIXED_DELAY, max=MAX_RECONNECT_FIXED_DELAY),
+                ),
+                vol.Optional(
                     CONF_LIGHT_MODE,
                     default=self.config_entry.options.get(
                         CONF_LIGHT_MODE, DEFAULT_LIGHT_MODE
@@ -231,15 +254,27 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_LED_DELAY_ON,
                     default=opts.get(CONF_LED_DELAY_ON, DEFAULT_LED_DELAY_ON),
-                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS)),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Optional(
                     CONF_LED_DELAY_OFF,
                     default=opts.get(CONF_LED_DELAY_OFF, DEFAULT_LED_DELAY_OFF),
-                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS)),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Optional(
                     CONF_LED_DELAY_RESET,
                     default=opts.get(CONF_LED_DELAY_RESET, DEFAULT_LED_DELAY_RESET),
-                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_LED_DELAY_RESET, max=MAX_LED_DELAY_RESET)),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_LED_DELAY_RESET, max=MAX_LED_DELAY_RESET, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Required("action", default="save"): vol.In(choices),
             }
         )

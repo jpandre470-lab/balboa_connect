@@ -59,6 +59,26 @@ LED_COLOR_CYCLES = "cycles"
 LED_COLOR_RGB = "rgb"
 LIGHT_OFF = "Off"
 
+# Reconnect backoff (used both for the very first connection and for any
+# later reconnect after a drop - a single, unified, user-controlled
+# mechanism instead of relying on Home Assistant's own ConfigEntryNotReady
+# retry schedule, which we do not control).
+CONF_RECONNECT_BACKOFF_MODE = "reconnect_backoff_mode"
+RECONNECT_BACKOFF_FIXED = "fixed"
+RECONNECT_BACKOFF_EXPONENTIAL = "exponential"
+RECONNECT_BACKOFF_MODES = [RECONNECT_BACKOFF_EXPONENTIAL, RECONNECT_BACKOFF_FIXED]
+DEFAULT_RECONNECT_BACKOFF_MODE = RECONNECT_BACKOFF_EXPONENTIAL
+
+CONF_RECONNECT_FIXED_DELAY = "reconnect_fixed_delay"
+DEFAULT_RECONNECT_FIXED_DELAY = 5   # seconds
+MIN_RECONNECT_FIXED_DELAY = 1
+MAX_RECONNECT_FIXED_DELAY = 60
+
+# Exponential mode parameters are not user-configurable (only the mode
+# choice and the fixed-mode delay are).
+RECONNECT_EXP_START = 5    # seconds
+RECONNECT_EXP_CAP = 300    # seconds
+
 DEFAULT_LED_COLORS = [
     {LED_COLOR_NAME: "Red",    LED_COLOR_CYCLES: 1, LED_COLOR_RGB: [255, 0,   0]},
     {LED_COLOR_NAME: "Green",  LED_COLOR_CYCLES: 2, LED_COLOR_RGB: [0,   255, 0]},

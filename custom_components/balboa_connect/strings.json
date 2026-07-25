@@ -29,16 +29,23 @@
                     "keepalive_interval": "Keep-alive interval (seconds)",
                     "keepalive_frame_type": "Keep-alive frame type: \"existing_client_request\" (default, gets a real reply from the WiFi module) or \"minimal\" (silent frame, no reply)",
                     "socket_timeout": "Socket timeout (seconds)",
+                    "reconnect_backoff_mode": "Reconnect backoff mode: \"exponential\" (5s up to 300s) or \"fixed\" (constant delay)",
+                    "reconnect_fixed_delay": "Fixed reconnect delay (seconds, only used when the mode above is \"fixed\")",
                     "light_mode": "Light control mode"
                 }
             },
             "led_palette": {
                 "description": "Current palette:\n{palette}",
                 "data": {
-                    "led_delay_on": "Delay while the light stays on during a color cycle pulse (ms)",
-                    "led_delay_off": "Delay while the light stays off during a color cycle pulse (ms)",
-                    "led_delay_reset": "Delay to reset the color cycle back to the first color (seconds)",
+                    "led_delay_on": "On delay (ms)",
+                    "led_delay_off": "Off delay (ms)",
+                    "led_delay_reset": "Reset delay (seconds)",
                     "action": "Action"
+                },
+                "data_description": {
+                    "led_delay_on": "How long the light stays on during a color cycle pulse",
+                    "led_delay_off": "How long the light stays off during a color cycle pulse",
+                    "led_delay_reset": "How long to wait before the color cycle resets back to the first color"
                 }
             },
             "led_edit": {
