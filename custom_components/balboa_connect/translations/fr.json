@@ -29,23 +29,16 @@
                     "keepalive_interval": "Intervalle du keep-alive (secondes)",
                     "keepalive_frame_type": "Type de trame keep-alive : \"existing_client_request\" (d\u00e9faut, obtient une vraie r\u00e9ponse du module Wi-Fi) ou \"minimal\" (trame silencieuse, sans r\u00e9ponse)",
                     "socket_timeout": "D\u00e9lai d'expiration du socket (secondes)",
-                    "reconnect_backoff_mode": "Mode de d\u00e9lai de reconnexion : \"exponential\" (5s jusqu'\u00e0 300s) ou \"fixed\" (d\u00e9lai constant)",
-                    "reconnect_fixed_delay": "D\u00e9lai de reconnexion fixe (secondes, utilis\u00e9 uniquement si le mode ci-dessus est \"fixed\")",
                     "light_mode": "Mode de contr\u00f4le des lumi\u00e8res"
                 }
             },
             "led_palette": {
                 "description": "Palette actuelle :\n{palette}",
                 "data": {
-                    "led_delay_on": "D\u00e9lai allum\u00e9 (ms)",
-                    "led_delay_off": "D\u00e9lai \u00e9teint (ms)",
-                    "led_delay_reset": "D\u00e9lai de r\u00e9initialisation (secondes)",
+                    "led_delay_on": "D\u00e9lai pendant lequel la lumi\u00e8re reste allum\u00e9e lors d'une impulsion du cycle de couleur (ms)",
+                    "led_delay_off": "D\u00e9lai pendant lequel la lumi\u00e8re reste \u00e9teinte lors d'une impulsion du cycle de couleur (ms)",
+                    "led_delay_reset": "D\u00e9lai pour r\u00e9initialiser le cycle de couleur sur la premi\u00e8re couleur (secondes)",
                     "action": "Action"
-                },
-                "data_description": {
-                    "led_delay_on": "Dur\u00e9e pendant laquelle la lumi\u00e8re reste allum\u00e9e lors d'une impulsion du cycle de couleur",
-                    "led_delay_off": "Dur\u00e9e pendant laquelle la lumi\u00e8re reste \u00e9teinte lors d'une impulsion du cycle de couleur",
-                    "led_delay_reset": "Dur\u00e9e d'attente avant que le cycle de couleur ne revienne \u00e0 la premi\u00e8re couleur"
                 }
             },
             "led_edit": {

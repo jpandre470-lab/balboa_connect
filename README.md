@@ -172,16 +172,6 @@ The thermostat entity also exposes a **preset** showing the spa's own heat mode 
 
 ## Version History
 
-### v0.3.3 (In Development)
-- **Objective:** Take full control of the reconnection mechanism instead of relying on Home Assistant's own (fixed, uncontrollable) retry schedule
-- The integration no longer raises `ConfigEntryNotReady` on a failed first connection attempt. Instead, setup always succeeds immediately: entities are created right away and report **unavailable** until the connection succeeds - exactly like any later reconnect after a drop. This removes the "Retrying" badge you used to see in Settings → Devices, in favor of grayed-out entities
-- New option **`reconnect_backoff_mode`**: `exponential` (default, 5s doubling up to a 300s cap) or `fixed` (constant delay)
-- New option **`reconnect_fixed_delay`**: 1-60 seconds, only used when the mode above is `fixed`
-- New diagnostic sensor **"Next Reconnect Attempt"** (timestamp), always available even while the spa itself is unreachable, so the configured backoff (fixed vs exponential) can be verified visually - this replaces the "Retrying" countdown Home Assistant used to show for `ConfigEntryNotReady`, which we no longer raise and which wouldn't have reflected our own backoff anyway (HA's own retry schedule is fixed and outside our control)
-- Fixed overlapping label/value text in the LED palette options step (`led_delay_on`/`led_delay_off`/`led_delay_reset`): the field labels were full sentences, which don't shrink to fit above the input on Home Assistant's form UI. Labels are now short, with the full explanation moved to `data_description` (shown as helper text instead)
-- Fixed the same 3 fields rendering inconsistently (2 as plain text boxes, 1 as a slider with a checkbox) - all three now use an explicit `NumberSelector` in `box` mode, so they render identically as plain number inputs
-- The same backoff now drives *every* reconnect attempt - the very first connection and any later one - through a single shared mechanism (`_attempt_reconnect_with_backoff` / `_reconnect_and_reinit` in `spaclient.py`), instead of the previous mix of Home Assistant's own exponential retries (5s→10→20...capped at 600s) for the first attempt and a fixed 5s delay for later ones
-
 ### v0.3.2 (In Development)
 - **Objective:** Fix three connection-reliability bugs found while diagnosing recurring disconnections
 - **Idle watchdog:** the connection is now considered stale if no data at all has been received from the spa for longer than `socket_timeout`, and a reconnect is forced proactively - instead of only detecting this once the low-level socket `recv()` call itself times out (which could silently take up to the full configured `socket_timeout`, e.g. an hour, to recover)

@@ -5,7 +5,6 @@ import homeassistant.util.dt as dt_util
 import logging
 import socket
 import time
-from datetime import timedelta
 
 # Import the device class from the component that you want to support
 from .const import (
@@ -14,12 +13,6 @@ from .const import (
     FAULT_MSG,
     KEEPALIVE_FRAME_MINIMAL,
     KEEPALIVE_FRAME_EXISTING_CLIENT,
-    RECONNECT_BACKOFF_FIXED,
-    RECONNECT_BACKOFF_EXPONENTIAL,
-    DEFAULT_RECONNECT_BACKOFF_MODE,
-    DEFAULT_RECONNECT_FIXED_DELAY,
-    RECONNECT_EXP_START,
-    RECONNECT_EXP_CAP,
 )
 from homeassistant.const import UnitOfTemperature
 from homeassistant.util.unit_conversion import TemperatureConverter
@@ -27,6 +20,7 @@ from threading import Lock
 
 # Constants for timeouts and retries
 REQUEST_TIMEOUT = 30  # Maximum time to wait for a response
+RECONNECT_DELAY = 5
 
 
 # --- Frame name / decode maps used for debug logging only (see spa protocol docs in the parse_* methods below) ---
@@ -315,8 +309,6 @@ class spaclient:
         keepalive_interval=30,
         socket_timeout=30,
         keepalive_frame_type=DEFAULT_KEEPALIVE_FRAME_TYPE,
-        reconnect_backoff_mode=DEFAULT_RECONNECT_BACKOFF_MODE,
-        reconnect_fixed_delay=DEFAULT_RECONNECT_FIXED_DELAY,
     ):
         """ Socket variables """
         self.socket_is_connected = False
@@ -335,22 +327,6 @@ class spaclient:
         self.keepalive_frame_type = keepalive_frame_type
         """ Socket timeout configuration """
         self.socket_timeout = socket_timeout
-
-        """ Reconnect backoff configuration - shared by the very first
-        connection attempt and by any later reconnect after a drop, so
-        there is a single, user-controlled mechanism instead of relying on
-        Home Assistant's own (uncontrollable) ConfigEntryNotReady retries. """
-        self.reconnect_backoff_mode = reconnect_backoff_mode
-        self.reconnect_fixed_delay = reconnect_fixed_delay
-        self._reconnect_tries = 0
-        self._next_reconnect_at = None
-        self._initial_burst_sent = False
-        # Wall-clock (UTC) mirror of _next_reconnect_at, exposed to a
-        # diagnostic sensor so the configured backoff (fixed vs
-        # exponential) can be visually verified in the UI - Home
-        # Assistant's own "retry" countdown isn't available to us anymore
-        # since we no longer raise ConfigEntryNotReady.
-        self.next_reconnect_at_utc = None
 
         """ Status update variable """
         self.status_chunk_array = []
@@ -512,6 +488,34 @@ class spaclient:
             self.socket_s = None
             return False
 
+    async def validate_connection(self):
+        """Validate connection with timeout protection."""
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
+            
+        connected = await self.get_socket()
+        if not connected or self.socket_s is None:
+            return False
+
+        count = 0
+        max_attempts = 50  # 5 seconds max (50 * 0.1s)
+        
+        while count < max_attempts and not self.socket_is_connected and not self._stop_flag:
+            try:
+                await self.read_msg_async()
+            except Exception as e:
+                _LOGGER.warning("Error reading message during validation: %s", e)
+            await asyncio.sleep(0.1)
+            count += 1
+
+        if not self.socket_is_connected:
+            _LOGGER.warning("Connection validation failed after %d attempts", count)
+            await self._close_socket()
+        else:
+            _LOGGER.info("Connected to spa at %s", self.socket_host_ip)
+
+        return self.socket_is_connected
+    
     async def _close_socket(self):
         """Safely close the socket."""
         self._flush_rx_log()
@@ -528,99 +532,14 @@ class spaclient:
         self._last_rx_time = None
         self._last_keepalive_response_time = None
 
-    def _get_reconnect_delay(self):
-        """Compute the delay before the next reconnect attempt.
-
-        Shared by the very first connection attempt and by any later
-        reconnect after a drop, so there is a single, user-controlled
-        backoff instead of relying on Home Assistant's own
-        (uncontrollable) ConfigEntryNotReady retry schedule.
-        """
-        if self.reconnect_backoff_mode == RECONNECT_BACKOFF_FIXED:
-            return self.reconnect_fixed_delay
-        return min(RECONNECT_EXP_START * (2 ** self._reconnect_tries), RECONNECT_EXP_CAP)
-
     async def _reconnect_and_reinit(self):
-        """Reconnect the socket and resume spa comms.
-
-        On the very first successful connection ever (self._initial_burst_sent
-        still False), this also waits briefly for the spa to start pushing
-        data, then sends the one-time initial state request burst - this
-        replaces the old validate_connection(), which used to be called
-        once, synchronously, from __init__.py before the config entry
-        finished setting up. Now the same method handles both the initial
-        connection and any later reconnect, both driven by
-        _attempt_reconnect_with_backoff() below, so entities are created
-        immediately and simply report "unavailable" until this succeeds -
-        no more raising ConfigEntryNotReady on a failed first attempt.
-        """
+        """Reconnect socket and send a keep-alive ping to resume spa comms."""
         connected = await self.get_socket()
-        if not connected:
-            return False
-
-        if not self._initial_burst_sent:
-            count = 0
-            max_attempts = 50  # 5 seconds max (50 * 0.1s)
-            while count < max_attempts and not self.socket_is_connected and not self._stop_flag:
-                try:
-                    await self.read_msg_async()
-                except Exception as e:
-                    _LOGGER.warning("Error reading message during initial connect: %s", e)
-                await asyncio.sleep(0.1)
-                count += 1
-
-            if not self.socket_is_connected:
-                _LOGGER.warning("No data received from spa after connecting (%d attempts)", count)
-                await self._close_socket()
-                return False
-
-            _LOGGER.info("Connected to spa at %s", self.socket_host_ip)
-            self._initial_burst_sent = True
-            try:
-                await self.send_additional_information_request()
-                await self.send_configuration_request()
-                await self.send_fault_log_request()
-                await self.send_filter_cycles_request()
-                await self.send_gfci_test_request()
-                await self.send_information_request()
-                await self.send_preferences_request()
-                await self.send_module_identification_request()
-            except Exception as e:
-                _LOGGER.error("Error sending initial state requests: %s", e)
-        else:
+        if connected:
             _LOGGER.info("Reconnected to spa at %s", self.socket_host_ip)
             # Sending fault log request acts as a keep-alive ping;
             # the spa will resume sending status updates on its own.
             await self.send_fault_log_request()
-
-        return True
-
-    async def _attempt_reconnect_with_backoff(self):
-        """Attempt a reconnect if due, applying the configured backoff.
-
-        Shared state (self._next_reconnect_at, self._reconnect_tries) means
-        it's safe to call this from multiple tasks (keep_alive_call and
-        read_all_msg both do, as a primary/backup pair) without the backoff
-        being thrown off by double-counted attempts.
-        """
-        if self.socket_s is not None:
-            return True
-
-        now = time.monotonic()
-        if self._next_reconnect_at is not None and now < self._next_reconnect_at:
-            return False  # still waiting out the current backoff delay
-
-        connected = await self._reconnect_and_reinit()
-        if connected:
-            self._reconnect_tries = 0
-            self._next_reconnect_at = None
-            self.next_reconnect_at_utc = None
-        else:
-            delay = self._get_reconnect_delay()
-            self._reconnect_tries += 1
-            self._next_reconnect_at = time.monotonic() + delay
-            self.next_reconnect_at_utc = dt_util.utcnow() + timedelta(seconds=delay)
-            _LOGGER.warning("Reconnect attempt failed, retrying in %ds", delay)
         return connected
 
     async def _wait_for_keepalive_response(self, previous_value, timeout=10):
@@ -675,13 +594,12 @@ class spaclient:
                     await self._close_socket()
 
                 if self.socket_s is None:
-                    # read_all_msg handles fast reconnect; this is a backup.
-                    # Shared backoff state means this won't double-count
-                    # attempts already made by read_all_msg.
-                    connected = await self._attempt_reconnect_with_backoff()
+                    # read_all_msg handles fast reconnect; this is a backup
+                    connected = await self._reconnect_and_reinit()
                     if connected:
                         next_keepalive_at = time.monotonic() + self.keepalive_interval
                     else:
+                        await asyncio.sleep(RECONNECT_DELAY)
                         continue
                 elif self.keepalive_enabled and now >= next_keepalive_at:
                     before = self._last_keepalive_response_time
@@ -1010,18 +928,28 @@ class spaclient:
     async def read_all_msg(self):
         """Main message reading loop with proper stop handling."""
         _LOGGER.debug("Message reading task started")
+        _next_reconnect_at = None
         while not self._stop_flag:
             try:
                 if self.socket_s is not None:
+                    _next_reconnect_at = None  # reset on a good socket
                     await self.read_msg_async()
                     await asyncio.sleep(0.1)
                 else:
-                    # Socket is gone - try to reconnect quickly instead of
-                    # waiting for keep_alive_call's 1s tick to notice.
-                    # Shared backoff state (self._next_reconnect_at) means
-                    # this naturally respects the same delay as
-                    # keep_alive_call's own backup attempts.
-                    await self._attempt_reconnect_with_backoff()
+                    # Socket is gone — try to reconnect quickly instead of
+                    # waiting up to 30s for keep_alive_call to wake up.
+                    now = asyncio.get_event_loop().time()
+                    if _next_reconnect_at is None:
+                        _next_reconnect_at = now + RECONNECT_DELAY
+                        _LOGGER.warning("Socket lost, will attempt reconnect in %ds", RECONNECT_DELAY)
+                    elif now >= _next_reconnect_at:
+                        _LOGGER.info("read_all_msg: attempting reconnect")
+                        connected = await self._reconnect_and_reinit()
+                        if connected:
+                            _next_reconnect_at = None
+                        else:
+                            # Back-off: try again after another RECONNECT_DELAY
+                            _next_reconnect_at = asyncio.get_event_loop().time() + RECONNECT_DELAY
                     await asyncio.sleep(1)
             except asyncio.CancelledError:
                 _LOGGER.debug("Message reading task cancelled")
@@ -1499,17 +1427,6 @@ class spaclient:
 
     def get_gateway_status(self):
         return self.socket_is_connected
-
-    def get_next_reconnect_at(self):
-        """UTC datetime of the next scheduled reconnect attempt, or None if
-        connected / no attempt has failed yet. Diagnostic only - lets the
-        configured backoff (fixed vs exponential) be verified visually."""
-        return self.next_reconnect_at_utc
-
-    def get_reconnect_tries(self):
-        """Number of consecutive failed reconnect attempts since the last
-        successful connection. Diagnostic only."""
-        return self._reconnect_tries
 
     def get_heat_mode(self):
         return self.heat_mode

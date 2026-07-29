@@ -4,25 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] - v0.3.3 (In Development)
-
-**Objective:** Take full control of the reconnection mechanism instead of relying on Home Assistant's own (fixed, uncontrollable) retry schedule.
-
-### Changed
-- The integration no longer raises `ConfigEntryNotReady` on a failed first connection attempt. Setup always succeeds immediately: entities are created right away and report unavailable (via `get_gateway_status()`) until the connection succeeds, exactly like any later reconnect after a drop. This removes the "Retrying" badge in Settings → Devices in favor of grayed-out entities while disconnected.
-- Unified the reconnect mechanism: the very first connection and any later reconnect after a drop are now driven by the same shared backoff (`_attempt_reconnect_with_backoff` / `_get_reconnect_delay` / `_reconnect_and_reinit` in `spaclient.py`), instead of the previous mix of Home Assistant's own exponential retry schedule (5s→10→20...capped at 600s, outside our control) for the first attempt and a fixed 5s delay for later ones.
-- `validate_connection()` has been folded into `_reconnect_and_reinit()`, which now also handles the one-time initial state request burst (previously done separately in `__init__.py`) the first time a connection ever succeeds.
-
-### Added
-- New option `reconnect_backoff_mode`: `exponential` (default, 5s doubling up to a 300s cap) or `fixed` (constant delay).
-- New option `reconnect_fixed_delay`: 1-60 seconds, used only when `reconnect_backoff_mode` is `fixed`. Both are applied live via `update_listener`.
-- New diagnostic sensor "Next Reconnect Attempt" (`SensorDeviceClass.TIMESTAMP`), always available (unlike other entities) so the configured backoff can be verified visually in the UI even while disconnected. Exposes `reconnect_backoff_mode` and `consecutive_failed_attempts` as attributes.
-
-### Fixed
-- Overlapping label/value text in the LED palette options step (`led_delay_on`/`led_delay_off`/`led_delay_reset`): labels were full sentences that don't shrink to fit above the input field. Shortened to real field names, with the full explanation moved to `data_description` (en/fr/nb).
-- The same 3 fields rendered inconsistently (2 as plain text boxes, 1 as a slider with a checkbox) because Home Assistant's form UI defaults small numeric ranges to a slider. All three now use an explicit `NumberSelector` in `box` mode.
-
-## [0.3.2]
+## [Unreleased] - v0.3.2 (In Development)
 
 **Objective:** Fix three connection-reliability bugs found while diagnosing recurring disconnections.
 
