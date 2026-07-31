@@ -167,7 +167,7 @@ The thermostat entity also exposes a **preset** showing the spa's own heat mode 
 
 ## Known Limitations
 
-- **`scan_interval` option has no effect.** Every platform file (`sensor.py`, `switch.py`, etc.) hardcodes `SCAN_INTERVAL = timedelta(seconds=1)` at module level, ignoring the configured value entirely - even after a reload. Fixing this properly would need a shared update coordinator or a per-entity override, which is a larger architectural change on its own.
+- **`scan_interval` option has been removed.** It never had any effect: every platform file (`sensor.py`, `switch.py`, etc.) hardcodes `SCAN_INTERVAL = timedelta(seconds=1)` at module level, ignoring any configured value entirely. Rather than keep a config field that silently does nothing, it was removed from the config flow, `CONFIG_SCHEMA`, and options logging (v0.3.3). A real per-entity or coordinator-based polling interval would be a larger architectural change on its own, for a future iteration if ever needed.
 - **Select/preset state values are not translated.** Config flow field labels are translated (en/fr/nb), but the state values themselves (e.g. `Ready`, `Rest`, `Ready in Rest`, `Low`, `High`, `30 min`) are always shown in English, since they are used directly as internal values rather than translation keys. Fixing this for real would mean switching every select/preset to stable snake_case keys (`ready`, `rest`, ...) plus a `state_attributes` translation block per entity, across all select entities consistently - a dedicated iteration on its own.
 
 ## Version History
@@ -178,6 +178,7 @@ The thermostat entity also exposes a **preset** showing the spa's own heat mode 
 - Compared our code against the official Home Assistant Core Balboa integration: it raises `ConfigEntryNotReady("Unable to connect")` with a message, while ours raised it bare (`raise ConfigEntryNotReady`, no arguments). HA stores `str(exception) or None` as the retry reason shown in the UI - an empty message becomes the literal text "None" you were seeing. Both places in our code that raise `ConfigEntryNotReady` now include a descriptive message instead
 - The reconnection mechanism itself is unchanged from 0.3.2: `ConfigEntryNotReady` is still used, and the retry countdown/schedule is still entirely controlled by Home Assistant Core (5s→10→20...capped at 10 minutes) - this cannot be customized on our end, since `ConfigEntryNotReady` doesn't expose any delay parameter
 - Also fixed two config_flow display bugs in the LED palette options step (`led_delay_on`/`led_delay_off`/`led_delay_reset`): the label text was overlapping the input value (labels were full sentences, moved to short names with the explanation in `data_description` instead), and the 3 fields rendered inconsistently (2 as text boxes, 1 as a slider) - all three now use an explicit `NumberSelector` in `box` mode
+- Removed the `scan_interval` option entirely (config flow, `CONFIG_SCHEMA`, options logging) - it never had any effect, since every platform hardcodes its own polling interval at module level (see Known Limitations below)
 
 ### v0.3.2 (In Development)
 - **Objective:** Fix three connection-reliability bugs found while diagnosing recurring disconnections
