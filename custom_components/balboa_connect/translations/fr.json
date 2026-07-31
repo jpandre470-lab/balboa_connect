@@ -35,10 +35,15 @@
             "led_palette": {
                 "description": "Palette actuelle :\n{palette}",
                 "data": {
-                    "led_delay_on": "D\u00e9lai pendant lequel la lumi\u00e8re reste allum\u00e9e lors d'une impulsion du cycle de couleur (ms)",
-                    "led_delay_off": "D\u00e9lai pendant lequel la lumi\u00e8re reste \u00e9teinte lors d'une impulsion du cycle de couleur (ms)",
-                    "led_delay_reset": "D\u00e9lai pour r\u00e9initialiser le cycle de couleur sur la premi\u00e8re couleur (secondes)",
+                    "led_delay_on": "D\u00e9lai allum\u00e9 (ms)",
+                    "led_delay_off": "D\u00e9lai \u00e9teint (ms)",
+                    "led_delay_reset": "D\u00e9lai de r\u00e9initialisation (secondes)",
                     "action": "Action"
+                },
+                "data_description": {
+                    "led_delay_on": "Dur\u00e9e pendant laquelle la lumi\u00e8re reste allum\u00e9e lors d'une impulsion du cycle de couleur",
+                    "led_delay_off": "Dur\u00e9e pendant laquelle la lumi\u00e8re reste \u00e9teinte lors d'une impulsion du cycle de couleur",
+                    "led_delay_reset": "Dur\u00e9e d'attente avant que le cycle de couleur ne revienne \u00e0 la premi\u00e8re couleur"
                 }
             },
             "led_edit": {

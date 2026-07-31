@@ -35,10 +35,15 @@
             "led_palette": {
                 "description": "N\u00e5v\u00e6rende palett:\n{palette}",
                 "data": {
-                    "led_delay_on": "Forsinkelse mens lyset er p\u00e5 under en fargesyklus-puls (ms)",
-                    "led_delay_off": "Forsinkelse mens lyset er av under en fargesyklus-puls (ms)",
-                    "led_delay_reset": "Forsinkelse for \u00e5 tilbakestille fargesyklusen til den f\u00f8rste fargen (sekunder)",
+                    "led_delay_on": "P\u00e5-forsinkelse (ms)",
+                    "led_delay_off": "Av-forsinkelse (ms)",
+                    "led_delay_reset": "Tilbakestillingsforsinkelse (sekunder)",
                     "action": "Handling"
+                },
+                "data_description": {
+                    "led_delay_on": "Hvor lenge lyset er p\u00e5 under en fargesyklus-puls",
+                    "led_delay_off": "Hvor lenge lyset er av under en fargesyklus-puls",
+                    "led_delay_reset": "Hvor lenge man venter f\u00f8r fargesyklusen tilbakestilles til den f\u00f8rste fargen"
                 }
             },
             "led_edit": {
