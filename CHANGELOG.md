@@ -4,7 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] - v0.3.2 (In Development)
+## [Unreleased] - v0.3.3 (In Development)
+
+**Objective:** Fix the "nouvel essai: None" message shown in Settings → Devices when the spa is unreachable at startup.
+
+**Note:** an earlier attempt at this version replaced the connection mechanism entirely (removed `ConfigEntryNotReady`, added a custom configurable backoff, entities created immediately as "unavailable"). That approach caused Home Assistant to hang/crash and was reverted. This version starts fresh from 0.3.2 with a minimal, low-risk fix instead.
+
+### Fixed
+- Both places that raise `ConfigEntryNotReady` in `__init__.py` now include a descriptive message (e.g. `"Unable to connect to spa at {host}"`), instead of raising it bare. Home Assistant Core stores `str(exception) or None` as the retry reason shown in Settings → Devices; an empty message was literally displayed as the text "None". Confirmed by comparing against the official Home Assistant Core Balboa integration, which always raises `ConfigEntryNotReady` with a message.
+- Overlapping label/value text in the LED palette options step (`led_delay_on`/`led_delay_off`/`led_delay_reset`): labels were full sentences that don't shrink to fit above the input field. Shortened to real field names, with the full explanation moved to `data_description` (en/fr/nb).
+- The same 3 fields rendered inconsistently (2 as plain text boxes, 1 as a slider with a checkbox) because Home Assistant's form UI defaults small numeric ranges to a slider. All three now use an explicit `NumberSelector` in `box` mode.
+
+### Not changed
+- The reconnection mechanism itself: `ConfigEntryNotReady` is still used, and the retry schedule is still entirely controlled by Home Assistant Core (5s→10→20...capped at 10 minutes). This cannot be customized - `ConfigEntryNotReady` doesn't expose any delay parameter to integrations.
+
+## [0.3.2]
 
 **Objective:** Fix three connection-reliability bugs found while diagnosing recurring disconnections.
 

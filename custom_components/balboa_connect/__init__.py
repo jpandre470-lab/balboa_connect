@@ -106,7 +106,7 @@ async def async_setup_entry(hass, config_entry):
         if not connected:
             _LOGGER.error("Failed to connect to spa at %s", config_entry.data[CONF_HOST])
             await spa.stop()
-            raise ConfigEntryNotReady
+            raise ConfigEntryNotReady(f"Unable to connect to spa at {config_entry.data[CONF_HOST]}")
 
         await spa.send_additional_information_request()
         await spa.send_configuration_request()
@@ -122,7 +122,7 @@ async def async_setup_entry(hass, config_entry):
     except Exception as e:
         _LOGGER.error("Error during spa initialization: %s", e)
         await spa.stop()
-        raise ConfigEntryNotReady from e
+        raise ConfigEntryNotReady(f"Error during spa initialization: {e}") from e
 
     hass.data[DOMAIN][config_entry.entry_id] = {
         SPA: spa,

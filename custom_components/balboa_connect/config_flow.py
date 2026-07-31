@@ -1,6 +1,7 @@
 """Config flow for Balboa Connect integration."""
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from homeassistant.helpers import selector
 
 # Import the device class from the component that you want to support
 from .const import (
@@ -231,15 +232,27 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_LED_DELAY_ON,
                     default=opts.get(CONF_LED_DELAY_ON, DEFAULT_LED_DELAY_ON),
-                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS)),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Optional(
                     CONF_LED_DELAY_OFF,
                     default=opts.get(CONF_LED_DELAY_OFF, DEFAULT_LED_DELAY_OFF),
-                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS)),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Optional(
                     CONF_LED_DELAY_RESET,
                     default=opts.get(CONF_LED_DELAY_RESET, DEFAULT_LED_DELAY_RESET),
-                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_LED_DELAY_RESET, max=MAX_LED_DELAY_RESET)),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_LED_DELAY_RESET, max=MAX_LED_DELAY_RESET, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
                 vol.Required("action", default="save"): vol.In(choices),
             }
         )

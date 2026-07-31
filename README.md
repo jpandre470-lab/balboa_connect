@@ -172,6 +172,13 @@ The thermostat entity also exposes a **preset** showing the spa's own heat mode 
 
 ## Version History
 
+### v0.3.3 (In Development)
+- **Objective:** Fix the "nouvel essai: None" message shown in Settings → Devices when the spa is unreachable at startup
+- **Note:** an earlier attempt at this version replaced the connection mechanism entirely (no more `ConfigEntryNotReady`, custom configurable backoff, entities created immediately as "unavailable"). That approach caused Home Assistant to hang/crash and was reverted - this version starts fresh from 0.3.2 instead, with a minimal, low-risk fix
+- Compared our code against the official Home Assistant Core Balboa integration: it raises `ConfigEntryNotReady("Unable to connect")` with a message, while ours raised it bare (`raise ConfigEntryNotReady`, no arguments). HA stores `str(exception) or None` as the retry reason shown in the UI - an empty message becomes the literal text "None" you were seeing. Both places in our code that raise `ConfigEntryNotReady` now include a descriptive message instead
+- The reconnection mechanism itself is unchanged from 0.3.2: `ConfigEntryNotReady` is still used, and the retry countdown/schedule is still entirely controlled by Home Assistant Core (5s→10→20...capped at 10 minutes) - this cannot be customized on our end, since `ConfigEntryNotReady` doesn't expose any delay parameter
+- Also fixed two config_flow display bugs in the LED palette options step (`led_delay_on`/`led_delay_off`/`led_delay_reset`): the label text was overlapping the input value (labels were full sentences, moved to short names with the explanation in `data_description` instead), and the 3 fields rendered inconsistently (2 as text boxes, 1 as a slider) - all three now use an explicit `NumberSelector` in `box` mode
+
 ### v0.3.2 (In Development)
 - **Objective:** Fix three connection-reliability bugs found while diagnosing recurring disconnections
 - **Idle watchdog:** the connection is now considered stale if no data at all has been received from the spa for longer than `socket_timeout`, and a reconnect is forced proactively - instead of only detecting this once the low-level socket `recv()` call itself times out (which could silently take up to the full configured `socket_timeout`, e.g. an hour, to recover)
