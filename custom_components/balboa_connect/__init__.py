@@ -10,9 +10,17 @@ from .const import (
     CONF_KEEPALIVE_ENABLED,
     CONF_KEEPALIVE_INTERVAL,
     CONF_KEEPALIVE_FRAME_TYPE,
+    CONF_KEEPALIVE_MISSED_UPDATES_ENABLED,
+    CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+    CONF_SYNC_TIME_INTERVAL,
+    CONF_FAULT_LOG_REFRESH_INTERVAL,
     DEFAULT_KEEPALIVE_ENABLED,
     DEFAULT_KEEPALIVE_INTERVAL,
     DEFAULT_KEEPALIVE_FRAME_TYPE,
+    DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED,
+    DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+    DEFAULT_SYNC_TIME_INTERVAL,
+    DEFAULT_FAULT_LOG_REFRESH_INTERVAL,
     _LOGGER,
     CONF_SYNC_TIME,
     DATA_LISTENER,
@@ -27,6 +35,7 @@ from .spaclient import spaclient
 DATA_KEEP_ALIVE_TASK = "keep_alive_task"
 DATA_READ_MSG_TASK = "read_msg_task"
 DATA_SYNC_TIME_TASK = "sync_time_task"
+DATA_FAULT_LOG_TASK = "fault_log_task"
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     CONF_HOST,
@@ -71,6 +80,12 @@ async def async_setup_entry(hass, config_entry):
     keepalive_enabled = config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED)
     keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
     keepalive_frame_type = config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE)
+    keepalive_missed_updates_enabled = config_entry.options.get(
+        CONF_KEEPALIVE_MISSED_UPDATES_ENABLED, DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED
+    )
+    keepalive_missed_updates_threshold = config_entry.options.get(
+        CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD, DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD
+    )
     socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
     spa = spaclient(
         config_entry.data[CONF_HOST],
@@ -78,6 +93,8 @@ async def async_setup_entry(hass, config_entry):
         keepalive_interval,
         socket_timeout=socket_timeout,
         keepalive_frame_type=keepalive_frame_type,
+        keepalive_missed_updates_enabled=keepalive_missed_updates_enabled,
+        keepalive_missed_updates_threshold=keepalive_missed_updates_threshold,
     )
 
     # Outbound and inbound frame logging is now handled natively inside
@@ -126,6 +143,7 @@ async def async_setup_entry(hass, config_entry):
         DATA_KEEP_ALIVE_TASK: None,
         DATA_READ_MSG_TASK: None,
         DATA_SYNC_TIME_TASK: None,
+        DATA_FAULT_LOG_TASK: None,
     }
 
     await update_listener(hass, config_entry)
@@ -154,7 +172,7 @@ async def async_unload_entry(hass, config_entry) -> bool:
         await spa.stop()
     
     # Cancel all running tasks
-    for task_key in [DATA_KEEP_ALIVE_TASK, DATA_READ_MSG_TASK, DATA_SYNC_TIME_TASK]:
+    for task_key in [DATA_KEEP_ALIVE_TASK, DATA_READ_MSG_TASK, DATA_SYNC_TIME_TASK, DATA_FAULT_LOG_TASK]:
         task = entry_data.get(task_key)
         if task and not task.done():
             task.cancel()
@@ -179,13 +197,18 @@ async def update_listener(hass, config_entry):
     """Handle options update."""
 
     _LOGGER.info(
-        "Balboa Connect options: sync_time=%s, keepalive_enabled=%s, keepalive_interval=%s, "
-        "keepalive_frame_type=%s, socket_timeout=%s",
+        "Balboa Connect options: sync_time=%s, sync_time_interval=%sh, keepalive_enabled=%s, "
+        "keepalive_interval=%s, keepalive_frame_type=%s, keepalive_missed_updates_enabled=%s, "
+        "keepalive_missed_updates_threshold=%s, socket_timeout=%s, fault_log_refresh_interval=%sh",
         config_entry.options.get(CONF_SYNC_TIME, False),
+        config_entry.options.get(CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL),
         config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED),
         config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL),
         config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE),
+        config_entry.options.get(CONF_KEEPALIVE_MISSED_UPDATES_ENABLED, DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED),
+        config_entry.options.get(CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD, DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD),
         config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT),
+        config_entry.options.get(CONF_FAULT_LOG_REFRESH_INTERVAL, DEFAULT_FAULT_LOG_REFRESH_INTERVAL),
     )
 
     spa = hass.data[DOMAIN][config_entry.entry_id][SPA]
@@ -195,6 +218,12 @@ async def update_listener(hass, config_entry):
     spa.keepalive_enabled = config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED)
     spa.keepalive_interval = config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL)
     spa.keepalive_frame_type = config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE)
+    spa.keepalive_missed_updates_enabled = config_entry.options.get(
+        CONF_KEEPALIVE_MISSED_UPDATES_ENABLED, DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED
+    )
+    spa.keepalive_missed_updates_threshold = config_entry.options.get(
+        CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD, DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD
+    )
     spa.socket_timeout = config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT)
     if spa.socket_s is not None:
         try:
@@ -202,9 +231,9 @@ async def update_listener(hass, config_entry):
         except OSError as e:
             _LOGGER.debug("Could not apply socket_timeout to the live socket: %s", e)
 
+    entry_data = hass.data[DOMAIN][config_entry.entry_id]
+
     if config_entry.options.get(CONF_SYNC_TIME):
-        entry_data = hass.data[DOMAIN][config_entry.entry_id]
-        
         # Cancel existing sync time task if any
         existing_task = entry_data.get(DATA_SYNC_TIME_TASK)
         if existing_task and not existing_task.done():
@@ -222,10 +251,40 @@ async def update_listener(hass, config_entry):
                     break
                 except Exception as e:
                     _LOGGER.error("Error syncing time: %s", e)
-                await asyncio.sleep(86400)
+                interval_hours = config_entry.options.get(CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL)
+                await asyncio.sleep(interval_hours * 3600)
 
         sync_task = hass.loop.create_task(sync_time())
         entry_data[DATA_SYNC_TIME_TASK] = sync_task
+
+    # Periodic fault log refresh: re-request it on a timer instead of only
+    # when the connection drops and reconnects, so a new fault raised while
+    # the connection stays up the whole time is still picked up promptly.
+    existing_fault_log_task = entry_data.get(DATA_FAULT_LOG_TASK)
+    if existing_fault_log_task and not existing_fault_log_task.done():
+        existing_fault_log_task.cancel()
+        try:
+            await existing_fault_log_task
+        except asyncio.CancelledError:
+            pass
+
+    async def refresh_fault_log():
+        while not spa._stop_flag:
+            interval_hours = config_entry.options.get(
+                CONF_FAULT_LOG_REFRESH_INTERVAL, DEFAULT_FAULT_LOG_REFRESH_INTERVAL
+            )
+            await asyncio.sleep(interval_hours * 3600)
+            if spa._stop_flag:
+                break
+            try:
+                await spa.send_fault_log_request()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                _LOGGER.error("Error refreshing fault log: %s", e)
+
+    fault_log_task = hass.loop.create_task(refresh_fault_log())
+    entry_data[DATA_FAULT_LOG_TASK] = fault_log_task
 
 
 class SpaClientDevice(Entity):

@@ -172,6 +172,15 @@ The thermostat entity also exposes a **preset** showing the spa's own heat mode 
 
 ## Version History
 
+### v0.3.4 (In Development)
+- **Objective:** Configurable time sync and fault log refresh intervals, plus a smarter, dual-trigger keep-alive
+- New option **`sync_time_interval`** (1-24h): the time sync interval is no longer hardcoded to once a day
+- New option **`fault_log_refresh_interval`** (1-24h): the fault log is now also refreshed periodically on this timer, in addition to the existing refresh on reconnect - previously it was only re-requested at startup and on reconnect, so a new fault raised while the connection stayed up for a long time wouldn't be picked up promptly
+- **Smarter keep-alive with two independent triggers**, either or both can be enabled at once:
+  - **Periodic** (`keepalive_enabled`, existing behavior): sent every `keepalive_interval`, regardless of anything else
+  - **Missed updates** (new: `keepalive_missed_updates_enabled` + `keepalive_missed_updates_threshold`, 1-200): the spa spontaneously pushes a status update roughly every ~300ms on its own; if nothing at all has been received for longer than (threshold × ~300ms - up to about 1 minute at 200), that's a strong signal something is wrong well before the periodic timer would fire, so a keep-alive is sent right away instead of waiting
+  - When the missed-updates trigger is enabled, the background watchdog ticks every 200ms instead of every second, so even a low threshold is detected with reasonable accuracy
+
 ### v0.3.3 (In Development)
 - **Objective:** Fix the "nouvel essai: None" message shown in Settings → Devices when the spa is unreachable at startup
 - **Note:** an earlier attempt at this version replaced the connection mechanism entirely (no more `ConfigEntryNotReady`, custom configurable backoff, entities created immediately as "unavailable"). That approach caused Home Assistant to hang/crash and was reverted - this version starts fresh from 0.3.2 instead, with a minimal, low-risk fix

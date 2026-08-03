@@ -10,6 +10,9 @@ import time
 from .const import (
     _LOGGER,
     DEFAULT_KEEPALIVE_FRAME_TYPE,
+    DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED,
+    DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+    SPONTANEOUS_UPDATE_INTERVAL_SECONDS,
     FAULT_MSG,
     KEEPALIVE_FRAME_MINIMAL,
     KEEPALIVE_FRAME_EXISTING_CLIENT,
@@ -309,6 +312,8 @@ class spaclient:
         keepalive_interval=30,
         socket_timeout=30,
         keepalive_frame_type=DEFAULT_KEEPALIVE_FRAME_TYPE,
+        keepalive_missed_updates_enabled=DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED,
+        keepalive_missed_updates_threshold=DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
     ):
         """ Socket variables """
         self.socket_is_connected = False
@@ -325,6 +330,12 @@ class spaclient:
         self.keepalive_enabled = keepalive_enabled
         self.keepalive_interval = keepalive_interval
         self.keepalive_frame_type = keepalive_frame_type
+        # "Missed updates" trigger: send a keep-alive if nothing at all has
+        # been received for longer than (threshold * ~300ms), instead of
+        # only relying on the periodic timer above. Independent toggle -
+        # either or both can be enabled at the same time.
+        self.keepalive_missed_updates_enabled = keepalive_missed_updates_enabled
+        self.keepalive_missed_updates_threshold = keepalive_missed_updates_threshold
         """ Socket timeout configuration """
         self.socket_timeout = socket_timeout
 
@@ -559,25 +570,32 @@ class spaclient:
     async def keep_alive_call(self):
         """Keep-alive and connection watchdog task.
 
-        Ticks every second so two independent concerns stay responsive
-        regardless of keepalive_interval:
-        - Idle watchdog: if no data at all has been received from the spa
-          for longer than socket_timeout, the connection is considered
-          stale and a reconnect is forced, instead of only finding out
-          once the low-level blocking socket recv() itself times out.
-        - Active keep-alive (opt-in): sent every keepalive_interval. For
-          "existing_client_request", the module's reply is verified within
-          a short window; if it never arrives, the connection is
-          considered stale too and a reconnect is forced.
+        Two independent, optional triggers decide when to send a keep-alive
+        (either or both can be enabled at once):
+        - Periodic (keepalive_enabled): sent every keepalive_interval,
+          regardless of what else is happening on the connection.
+        - Missed updates (keepalive_missed_updates_enabled): the spa
+          spontaneously pushes a status update roughly every ~300ms on its
+          own; if nothing at all has been received for longer than
+          (keepalive_missed_updates_threshold * ~300ms), that's a strong
+          signal something is wrong well before the periodic timer would
+          fire, so a keep-alive is sent right away instead of waiting.
 
-        keepalive_enabled, keepalive_interval, and keepalive_frame_type are
-        re-read live on every iteration, so changing them via the
-        integration options takes effect immediately without needing to
-        reload the integration.
+        Whichever trigger fires, "existing_client_request" replies are
+        verified within a short window; if it never arrives, the
+        connection is considered stale and a reconnect is forced.
+
+        There is also an idle watchdog: if no data at all has been received
+        for longer than socket_timeout, the connection is considered stale
+        and a reconnect is forced, instead of only finding out once the
+        low-level blocking socket recv() itself times out.
+
+        All keep-alive/watchdog options are re-read live on every
+        iteration, so changing them via the integration options takes
+        effect immediately without needing to reload the integration.
         """
         _LOGGER.debug("Keep-alive/watchdog task started")
         next_keepalive_at = 0
-        WATCHDOG_TICK = 1
         while not self._stop_flag:
             try:
                 now = time.monotonic()
@@ -601,27 +619,42 @@ class spaclient:
                     else:
                         await asyncio.sleep(RECONNECT_DELAY)
                         continue
-                elif self.keepalive_enabled and now >= next_keepalive_at:
-                    before = self._last_keepalive_response_time
-                    await self.send_keepalive()
-                    if self.keepalive_frame_type == KEEPALIVE_FRAME_EXISTING_CLIENT:
-                        confirmed = await self._wait_for_keepalive_response(
-                            before, timeout=min(10, self.keepalive_interval)
+                else:
+                    periodic_due = self.keepalive_enabled and now >= next_keepalive_at
+                    missed_updates_due = False
+                    if self.keepalive_missed_updates_enabled and self._last_rx_time is not None:
+                        missed_threshold_seconds = (
+                            self.keepalive_missed_updates_threshold * SPONTANEOUS_UPDATE_INTERVAL_SECONDS
                         )
-                        if not confirmed:
-                            _LOGGER.warning(
-                                "Keep-alive: no reply from the WiFi module to the "
-                                "existing_client_request frame, forcing a reconnect"
+                        missed_updates_due = (now - self._last_rx_time) >= missed_threshold_seconds
+
+                    if periodic_due or missed_updates_due:
+                        before = self._last_keepalive_response_time
+                        await self.send_keepalive()
+                        if self.keepalive_frame_type == KEEPALIVE_FRAME_EXISTING_CLIENT:
+                            confirmed = await self._wait_for_keepalive_response(
+                                before, timeout=min(10, self.keepalive_interval)
                             )
-                            await self._close_socket()
-                    next_keepalive_at = time.monotonic() + self.keepalive_interval
+                            if not confirmed:
+                                trigger = "periodic" if periodic_due else "missed updates"
+                                _LOGGER.warning(
+                                    "Keep-alive (%s trigger): no reply from the WiFi module to the "
+                                    "existing_client_request frame, forcing a reconnect",
+                                    trigger,
+                                )
+                                await self._close_socket()
+                        next_keepalive_at = time.monotonic() + self.keepalive_interval
             except asyncio.CancelledError:
                 _LOGGER.debug("Keep-alive/watchdog task cancelled")
                 break
             except Exception as e:
                 _LOGGER.error("Error in keep_alive_call: %s", e)
                 await self._close_socket()
-            await asyncio.sleep(WATCHDOG_TICK)
+            # Tick finely when the missed-updates trigger is enabled, so
+            # even a low threshold (down to 1, ~300ms) is detected with
+            # reasonable accuracy; otherwise, tick once a second like before.
+            watchdog_tick = 0.2 if self.keepalive_missed_updates_enabled else 1
+            await asyncio.sleep(watchdog_tick)
         _LOGGER.debug("Keep-alive/watchdog task stopped")
 
     def compute_checksum(self, length, payload):

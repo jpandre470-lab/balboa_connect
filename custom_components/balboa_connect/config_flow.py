@@ -7,9 +7,13 @@ from homeassistant.helpers import selector
 from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
+    CONF_SYNC_TIME_INTERVAL,
     CONF_KEEPALIVE_ENABLED,
     CONF_KEEPALIVE_INTERVAL,
     CONF_KEEPALIVE_FRAME_TYPE,
+    CONF_KEEPALIVE_MISSED_UPDATES_ENABLED,
+    CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+    CONF_FAULT_LOG_REFRESH_INTERVAL,
     CONF_SOCKET_TIMEOUT,
     CONF_LED_COLORS,
     CONF_LED_DELAY_OFF,
@@ -19,6 +23,10 @@ from .const import (
     DEFAULT_KEEPALIVE_ENABLED,
     DEFAULT_KEEPALIVE_INTERVAL,
     DEFAULT_KEEPALIVE_FRAME_TYPE,
+    DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED,
+    DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+    DEFAULT_SYNC_TIME_INTERVAL,
+    DEFAULT_FAULT_LOG_REFRESH_INTERVAL,
     DEFAULT_SOCKET_TIMEOUT,
     DEFAULT_LED_COLORS,
     DEFAULT_LED_DELAY_OFF,
@@ -34,6 +42,12 @@ from .const import (
     LIGHT_MODE_SWITCH,
     MIN_KEEPALIVE_INTERVAL,
     MAX_KEEPALIVE_INTERVAL,
+    MIN_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+    MAX_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+    MIN_SYNC_TIME_INTERVAL,
+    MAX_SYNC_TIME_INTERVAL,
+    MIN_FAULT_LOG_REFRESH_INTERVAL,
+    MAX_FAULT_LOG_REFRESH_INTERVAL,
     MIN_SOCKET_TIMEOUT,
     MAX_SOCKET_TIMEOUT,
     MIN_LED_DELAY_MS,
@@ -128,6 +142,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=self.config_entry.options.get(CONF_SYNC_TIME, False),
                 ): bool,
                 vol.Optional(
+                    CONF_SYNC_TIME_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_SYNC_TIME_INTERVAL, DEFAULT_SYNC_TIME_INTERVAL
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_SYNC_TIME_INTERVAL, max=MAX_SYNC_TIME_INTERVAL, mode=selector.NumberSelectorMode.BOX
+                    )
+                ),
+                vol.Optional(
                     CONF_KEEPALIVE_ENABLED,
                     default=self.config_entry.options.get(
                         CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED
@@ -149,6 +173,24 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ): vol.In(KEEPALIVE_FRAME_TYPES),
                 vol.Optional(
+                    CONF_KEEPALIVE_MISSED_UPDATES_ENABLED,
+                    default=self.config_entry.options.get(
+                        CONF_KEEPALIVE_MISSED_UPDATES_ENABLED, DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED
+                    ),
+                ): bool,
+                vol.Optional(
+                    CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+                    default=self.config_entry.options.get(
+                        CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD, DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+                        max=MAX_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
                     CONF_SOCKET_TIMEOUT,
                     default=self.config_entry.options.get(
                         CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT
@@ -156,6 +198,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): vol.All(
                     cv.positive_int,
                     vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT),
+                ),
+                vol.Optional(
+                    CONF_FAULT_LOG_REFRESH_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_FAULT_LOG_REFRESH_INTERVAL, DEFAULT_FAULT_LOG_REFRESH_INTERVAL
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_FAULT_LOG_REFRESH_INTERVAL,
+                        max=MAX_FAULT_LOG_REFRESH_INTERVAL,
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
                 ),
                 vol.Optional(
                     CONF_LIGHT_MODE,

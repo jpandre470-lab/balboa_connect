@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] - v0.3.3 (In Development)
+## [Unreleased] - v0.3.4 (In Development)
+
+**Objective:** Configurable time sync and fault log refresh intervals, plus a smarter, dual-trigger keep-alive.
+
+### Added
+- Option `sync_time_interval` (1-24h): time sync interval is no longer hardcoded to once a day (86400s).
+- Option `fault_log_refresh_interval` (1-24h) and a new periodic background task that re-requests the fault log on this timer, in addition to the existing refresh on reconnect. Previously the fault log was only re-requested at startup and on reconnect, so a new fault raised while the connection stayed up for a long time wasn't picked up promptly.
+- Option `keepalive_missed_updates_enabled` + `keepalive_missed_updates_threshold` (1-200): a second, independent keep-alive trigger. The spa spontaneously pushes a status update roughly every ~300ms on its own; if nothing at all has been received for longer than (threshold * ~300ms), a keep-alive is sent right away instead of waiting for the periodic timer. Can be enabled alongside or instead of the existing periodic trigger (`keepalive_enabled`).
+
+### Changed
+- `keep_alive_call()`'s watchdog tick tightens to 200ms (from 1s) when `keepalive_missed_updates_enabled` is on, so even a low threshold (down to 1, ~300ms) is detected with reasonable accuracy.
+
+## [0.3.3]
 
 **Objective:** Fix the "nouvel essai: None" message shown in Settings → Devices when the spa is unreachable at startup.
 
