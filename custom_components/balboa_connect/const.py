@@ -8,7 +8,6 @@ CONF_KEEPALIVE_INTERVAL = "keepalive_interval"
 CONF_KEEPALIVE_FRAME_TYPE = "keepalive_frame_type"
 CONF_SOCKET_TIMEOUT = "socket_timeout"
 DATA_LISTENER = "listener"
-DEFAULT_SCAN_INTERVAL = 1
 # Keep-alive is opt-in: the spa already pushes status updates on its own,
 # so the integration stays passive on the connection unless the user
 # explicitly enables an active keep-alive.
@@ -26,7 +25,6 @@ KEEPALIVE_FRAME_TYPES = [KEEPALIVE_FRAME_EXISTING_CLIENT, KEEPALIVE_FRAME_MINIMA
 DEFAULT_KEEPALIVE_FRAME_TYPE = KEEPALIVE_FRAME_EXISTING_CLIENT
 DOMAIN = "balboa_connect"
 FILTER_CYCLE_TIMES = ["Begins", "Runs"]
-MIN_SCAN_INTERVAL = 1
 MIN_KEEPALIVE_INTERVAL = 1
 MAX_KEEPALIVE_INTERVAL = 3600
 MIN_SOCKET_TIMEOUT = 5

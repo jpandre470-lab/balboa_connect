@@ -16,7 +16,6 @@ from .const import (
     CONF_LED_DELAY_ON,
     CONF_LED_DELAY_RESET,
     CONF_LIGHT_MODE,
-    DEFAULT_SCAN_INTERVAL,
     DEFAULT_KEEPALIVE_ENABLED,
     DEFAULT_KEEPALIVE_INTERVAL,
     DEFAULT_KEEPALIVE_FRAME_TYPE,
@@ -33,7 +32,6 @@ from .const import (
     LED_COLOR_RGB,
     LIGHT_MODE_COLOR,
     LIGHT_MODE_SWITCH,
-    MIN_SCAN_INTERVAL,
     MIN_KEEPALIVE_INTERVAL,
     MAX_KEEPALIVE_INTERVAL,
     MIN_SOCKET_TIMEOUT,
@@ -48,7 +46,6 @@ from homeassistant import config_entries, core, exceptions
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
-    CONF_SCAN_INTERVAL,
 )
 from homeassistant.core import callback
 
@@ -126,12 +123,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
-                vol.Optional(
-                    CONF_SCAN_INTERVAL,
-                    default=self.config_entry.options.get(
-                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                    ),
-                ): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
                 vol.Optional(
                     CONF_SYNC_TIME,
                     default=self.config_entry.options.get(CONF_SYNC_TIME, False),

@@ -23,7 +23,6 @@
         "step": {
             "init": {
                 "data": {
-                    "scan_interval": "Fr\u00e9quence rafra\u00eechissement des entit\u00e9s (secondes)",
                     "sync_time": "Gardez l'heure de votre contr\u00f4leur Balboa BP synchronis\u00e9e avec Home Assistant",
                     "keepalive_enabled": "Activer le keep-alive (g\u00e9n\u00e9ralement inutile, le spa envoie d\u00e9j\u00e0 ses statuts spontan\u00e9ment)",
                     "keepalive_interval": "Intervalle du keep-alive (secondes)",

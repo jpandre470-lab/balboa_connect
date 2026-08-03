@@ -15,6 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Overlapping label/value text in the LED palette options step (`led_delay_on`/`led_delay_off`/`led_delay_reset`): labels were full sentences that don't shrink to fit above the input field. Shortened to real field names, with the full explanation moved to `data_description` (en/fr/nb).
 - The same 3 fields rendered inconsistently (2 as plain text boxes, 1 as a slider with a checkbox) because Home Assistant's form UI defaults small numeric ranges to a slider. All three now use an explicit `NumberSelector` in `box` mode.
 
+### Removed
+- The `scan_interval` option (config flow field, `CONFIG_SCHEMA`, options logging). It never had any effect: every platform hardcodes `SCAN_INTERVAL = timedelta(seconds=1)` at module level, ignoring any configured value entirely.
+
 ### Not changed
 - The reconnection mechanism itself: `ConfigEntryNotReady` is still used, and the retry schedule is still entirely controlled by Home Assistant Core (5s→10→20...capped at 10 minutes). This cannot be customized - `ConfigEntryNotReady` doesn't expose any delay parameter to integrations.
 

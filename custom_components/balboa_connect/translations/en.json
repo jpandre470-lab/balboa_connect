@@ -23,7 +23,6 @@
         "step": {
             "init": {
                 "data": {
-                    "scan_interval": "Entities polling rate (seconds)",
                     "sync_time": "Keep your Balboa BP controller's time synchronized with Home Assistant",
                     "keepalive_enabled": "Enable keep-alive (usually not needed, the spa already pushes status updates on its own)",
                     "keepalive_interval": "Keep-alive interval (seconds)",

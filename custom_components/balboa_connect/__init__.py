@@ -16,10 +16,8 @@ from .const import (
     _LOGGER,
     CONF_SYNC_TIME,
     DATA_LISTENER,
-    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     ICONS,
-    MIN_SCAN_INTERVAL,
     SPA,
     SPACLIENT_COMPONENTS,
 )
@@ -33,7 +31,6 @@ from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
-    CONF_SCAN_INTERVAL,
 )
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.entity import Entity
@@ -45,7 +42,6 @@ CONFIG_SCHEMA = vol.Schema(
             {
                 vol.Required(CONF_HOST): cv.string,
                 vol.Required(CONF_NAME): cv.string,
-                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
                 vol.Optional(CONF_SYNC_TIME, default=False): bool,
             }
         )
@@ -184,13 +180,12 @@ async def update_listener(hass, config_entry):
 
     _LOGGER.info(
         "Balboa Connect options: sync_time=%s, keepalive_enabled=%s, keepalive_interval=%s, "
-        "keepalive_frame_type=%s, socket_timeout=%s, scan_interval=%s",
+        "keepalive_frame_type=%s, socket_timeout=%s",
         config_entry.options.get(CONF_SYNC_TIME, False),
         config_entry.options.get(CONF_KEEPALIVE_ENABLED, DEFAULT_KEEPALIVE_ENABLED),
         config_entry.options.get(CONF_KEEPALIVE_INTERVAL, DEFAULT_KEEPALIVE_INTERVAL),
         config_entry.options.get(CONF_KEEPALIVE_FRAME_TYPE, DEFAULT_KEEPALIVE_FRAME_TYPE),
         config_entry.options.get(CONF_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT),
-        config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
 
     spa = hass.data[DOMAIN][config_entry.entry_id][SPA]
