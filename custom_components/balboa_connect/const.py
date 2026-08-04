@@ -3,9 +3,13 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 CONF_SYNC_TIME = "sync_time"
+CONF_SYNC_TIME_INTERVAL = "sync_time_interval"
 CONF_KEEPALIVE_ENABLED = "keepalive_enabled"
 CONF_KEEPALIVE_INTERVAL = "keepalive_interval"
 CONF_KEEPALIVE_FRAME_TYPE = "keepalive_frame_type"
+CONF_KEEPALIVE_MISSED_UPDATES_ENABLED = "keepalive_missed_updates_enabled"
+CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD = "keepalive_missed_updates_threshold"
+CONF_FAULT_LOG_REFRESH_INTERVAL = "fault_log_refresh_interval"
 CONF_SOCKET_TIMEOUT = "socket_timeout"
 DATA_LISTENER = "listener"
 # Keep-alive is opt-in: the spa already pushes status updates on its own,
@@ -23,6 +27,30 @@ KEEPALIVE_FRAME_MINIMAL = "minimal"
 KEEPALIVE_FRAME_EXISTING_CLIENT = "existing_client_request"
 KEEPALIVE_FRAME_TYPES = [KEEPALIVE_FRAME_EXISTING_CLIENT, KEEPALIVE_FRAME_MINIMAL]
 DEFAULT_KEEPALIVE_FRAME_TYPE = KEEPALIVE_FRAME_EXISTING_CLIENT
+
+# "Missed updates" keep-alive trigger: the spa spontaneously pushes a
+# status update roughly every 300ms on its own. If nothing at all has been
+# received for longer than (threshold * 300ms), that's a strong signal
+# something is wrong even before the periodic keep-alive timer would fire -
+# send a keep-alive right away instead of waiting. Can be enabled
+# independently of, or alongside, the periodic keep-alive above.
+SPONTANEOUS_UPDATE_INTERVAL_SECONDS = 0.3
+DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED = False
+DEFAULT_KEEPALIVE_MISSED_UPDATES_THRESHOLD = 10   # ~3s
+MIN_KEEPALIVE_MISSED_UPDATES_THRESHOLD = 1        # ~300ms
+MAX_KEEPALIVE_MISSED_UPDATES_THRESHOLD = 200      # ~60s
+
+# Time sync and fault log refresh are both configurable from 1 to 24 hours
+# (previously hardcoded: sync every 24h, fault log only re-requested on
+# reconnect).
+DEFAULT_SYNC_TIME_INTERVAL = 24    # hours
+MIN_SYNC_TIME_INTERVAL = 1         # hours
+MAX_SYNC_TIME_INTERVAL = 24        # hours
+
+DEFAULT_FAULT_LOG_REFRESH_INTERVAL = 24    # hours
+MIN_FAULT_LOG_REFRESH_INTERVAL = 1         # hours
+MAX_FAULT_LOG_REFRESH_INTERVAL = 24        # hours
+
 DOMAIN = "balboa_connect"
 FILTER_CYCLE_TIMES = ["Begins", "Runs"]
 MIN_KEEPALIVE_INTERVAL = 1
