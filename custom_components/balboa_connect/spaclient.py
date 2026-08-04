@@ -323,7 +323,15 @@ class spaclient:
         
         """ Task control variables """
         self._stop_flag = False
-        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="spa_socket")
+        # 2 workers: one for the blocking recv() in the read loop (which can
+        # legitimately block for up to socket_timeout waiting for data), one
+        # for outbound send()s (keep-alive, commands). With only 1 worker, a
+        # keep-alive triggered by the "missed updates" watchdog (or any TX)
+        # would queue behind an in-flight recv() and only actually execute
+        # once that recv() itself times out - completely defeating the
+        # purpose of a fast, proactive keep-alive. send()/recv() from two
+        # separate threads on the same socket is a standard, safe pattern.
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="spa_socket")
         self._loop = None
 
         """ Keep-alive configuration """
