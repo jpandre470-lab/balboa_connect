@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] - v0.3.5 (In Development)
+
+**Objective:** Fix a head-of-line blocking bug found while testing 0.3.4's new keep-alive triggers, which made every proactive keep-alive/watchdog mechanism ineffective.
+
+### Fixed
+- The socket executor (`ThreadPoolExecutor`) only had 1 worker thread shared between reading (`recv()`, which can legitimately block for the full `socket_timeout` waiting for data) and sending (keep-alive, commands). Any outbound send would queue behind an in-flight `recv()` and only actually execute once that `recv()` timed out on its own. Confirmed from real logs: a keep-alive configured to trigger after ~600ms of silence only actually went out 60 seconds later, at the exact millisecond the low-level socket timeout expired. Now uses 2 worker threads (one for reads, one for writes) - a standard, safe pattern for concurrent socket use.
+- Overlapping label/value text on the 3 new `NumberSelector` options added in 0.3.4 (`sync_time_interval`, `keepalive_missed_updates_threshold`, `fault_log_refresh_interval`): labels were still too long to fit above the field on narrow screens, even after the earlier shortening pass. Labels are now minimal, with the full explanation moved to `data_description` (en/fr/nb), matching the pattern already used for `keepalive_frame_type`.
+
 ## [Unreleased] - v0.3.4 (In Development)
 
 **Objective:** Configurable time sync and fault log refresh intervals, plus a smarter, dual-trigger keep-alive.

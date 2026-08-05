@@ -4,7 +4,7 @@
             "already_configured": "Enheten er allerede konfigurert"
         },
         "error": {
-            "cannot_connect": "Kunne ikke koble til, vennligst prøv igjen",
+            "cannot_connect": "Kunne ikke koble til, vennligst pr\u00f8v igjen",
             "unknown": "Ukjent feil"
         },
         "step": {
@@ -24,15 +24,20 @@
             "init": {
                 "data": {
                     "sync_time": "Hold Balboa BP kontrollerens tid synkronisert med Home Assistant",
-                    "sync_time_interval": "Intervall for tidssynkronisering (timer)",
+                    "sync_time_interval": "Synkroniseringsintervall",
                     "keepalive_enabled": "Aktiver periodisk keep-alive (vanligvis un\u00f8dvendig, badekaret sender allerede status p\u00e5 eget initiativ)",
                     "keepalive_interval": "Keep-alive-intervall (sekunder)",
                     "keepalive_frame_type": "Keep-alive-rammetype: \"existing_client_request\" (standard, f\u00e5r et reelt svar fra WiFi-modulen) eller \"minimal\" (stille ramme, uten svar)",
                     "keepalive_missed_updates_enabled": "Send ogs\u00e5 en keep-alive hvis badekarets spontane oppdateringer (vanligvis hvert ~300ms) slutter \u00e5 komme",
-                    "keepalive_missed_updates_threshold": "Antall uteblitte oppdateringer f\u00f8r utl\u00f8sning (1-200, ~300ms hver - 200 er ca. 1 minutt)",
+                    "keepalive_missed_updates_threshold": "Terskel",
                     "socket_timeout": "Socket-tidsavbrudd (sekunder)",
-                    "fault_log_refresh_interval": "Oppdateringsintervall for feillogg (timer)",
+                    "fault_log_refresh_interval": "Oppdateringsintervall",
                     "light_mode": "Lysstyringsmodus"
+                },
+                "data_description": {
+                    "sync_time_interval": "Hvor ofte badekarets klokke skal synkroniseres med Home Assistant, i timer (1-24)",
+                    "keepalive_missed_updates_threshold": "Antall uteblitte spontane badekaroppdateringer (~300ms hver, 1-200) f\u00f8r en keep-alive sendes - 200 er ca. 1 minutt med stillhet",
+                    "fault_log_refresh_interval": "Hvor ofte feilloggen skal ettersp\u00f8rres p\u00e5 nytt mens tilkoblingen er oppe, i timer (1-24)"
                 }
             },
             "led_palette": {
