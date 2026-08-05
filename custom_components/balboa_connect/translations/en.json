@@ -24,15 +24,20 @@
             "init": {
                 "data": {
                     "sync_time": "Keep your Balboa BP controller's time synchronized with Home Assistant",
-                    "sync_time_interval": "Time sync interval (hours)",
+                    "sync_time_interval": "Sync interval",
                     "keepalive_enabled": "Enable periodic keep-alive (usually not needed, the spa already pushes status updates on its own)",
                     "keepalive_interval": "Keep-alive interval (seconds)",
                     "keepalive_frame_type": "Keep-alive frame type: \"existing_client_request\" (default, gets a real reply from the WiFi module) or \"minimal\" (silent frame, no reply)",
                     "keepalive_missed_updates_enabled": "Also send a keep-alive if the spa's spontaneous updates (usually every ~300ms) stop arriving",
-                    "keepalive_missed_updates_threshold": "Missed updates before triggering (1-200, ~300ms each - 200 is about 1 minute)",
+                    "keepalive_missed_updates_threshold": "Threshold",
                     "socket_timeout": "Socket timeout (seconds)",
-                    "fault_log_refresh_interval": "Fault log refresh interval (hours)",
+                    "fault_log_refresh_interval": "Refresh interval",
                     "light_mode": "Light control mode"
+                },
+                "data_description": {
+                    "sync_time_interval": "How often to sync the spa's clock with Home Assistant, in hours (1-24)",
+                    "keepalive_missed_updates_threshold": "Number of missed spontaneous spa updates (~300ms each, 1-200) before sending a keep-alive - 200 is about 1 minute of silence",
+                    "fault_log_refresh_interval": "How often to re-request the fault log while the connection stays up, in hours (1-24)"
                 }
             },
             "led_palette": {

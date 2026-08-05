@@ -24,15 +24,20 @@
             "init": {
                 "data": {
                     "sync_time": "Gardez l'heure de votre contr\u00f4leur Balboa BP synchronis\u00e9e avec Home Assistant",
-                    "sync_time_interval": "Intervalle de synchronisation de l'heure (heures)",
+                    "sync_time_interval": "Intervalle de synchro",
                     "keepalive_enabled": "Activer le keep-alive p\u00e9riodique (g\u00e9n\u00e9ralement inutile, le spa envoie d\u00e9j\u00e0 ses statuts spontan\u00e9ment)",
                     "keepalive_interval": "Intervalle du keep-alive (secondes)",
                     "keepalive_frame_type": "Type de trame keep-alive : \"existing_client_request\" (d\u00e9faut, obtient une vraie r\u00e9ponse du module Wi-Fi) ou \"minimal\" (trame silencieuse, sans r\u00e9ponse)",
                     "keepalive_missed_updates_enabled": "Envoyer aussi un keep-alive si les mises \u00e0 jour spontan\u00e9es du spa (normalement toutes les ~300ms) s'arr\u00eatent",
-                    "keepalive_missed_updates_threshold": "Nombre de mises \u00e0 jour manqu\u00e9es avant d\u00e9clenchement (1-200, ~300ms chacune - 200 \u00e9quivaut \u00e0 environ 1 minute)",
+                    "keepalive_missed_updates_threshold": "Seuil",
                     "socket_timeout": "D\u00e9lai d'expiration du socket (secondes)",
-                    "fault_log_refresh_interval": "Intervalle de rafra\u00eechissement du journal des d\u00e9fauts (heures)",
+                    "fault_log_refresh_interval": "Intervalle de rafra\u00eechissement",
                     "light_mode": "Mode de contr\u00f4le des lumi\u00e8res"
+                },
+                "data_description": {
+                    "sync_time_interval": "Fr\u00e9quence de synchronisation de l'heure du spa avec Home Assistant, en heures (1-24)",
+                    "keepalive_missed_updates_threshold": "Nombre de mises \u00e0 jour spontan\u00e9es manqu\u00e9es (~300ms chacune, 1-200) avant l'envoi d'un keep-alive - 200 \u00e9quivaut \u00e0 environ 1 minute de silence",
+                    "fault_log_refresh_interval": "Fr\u00e9quence de re-demande du journal des d\u00e9fauts tant que la connexion reste active, en heures (1-24)"
                 }
             },
             "led_palette": {

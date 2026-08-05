@@ -177,6 +177,7 @@ The thermostat entity also exposes a **preset** showing the spa's own heat mode 
 - The socket executor (`ThreadPoolExecutor`) only had 1 worker thread shared between reading (`recv()`, which can legitimately block for the full `socket_timeout` waiting for data) and sending (keep-alive, commands). Any outbound send would queue behind an in-flight `recv()` and only actually execute once that `recv()` timed out on its own - meaning a keep-alive could never actually be sent proactively, no matter how aggressively it was configured to trigger
 - Confirmed from real logs: a keep-alive configured to fire after ~600ms of silence only actually went out 60 seconds later, at the exact millisecond the low-level socket timeout expired
 - Now uses 2 worker threads (one for reads, one for writes) - a standard, safe pattern for concurrent socket use
+- Also fixed overlapping label/value text on the 3 new `NumberSelector` options added in 0.3.4 (`sync_time_interval`, `keepalive_missed_updates_threshold`, `fault_log_refresh_interval`): their labels were still too long to fit above the field on narrow screens, even after shortening. Labels are now minimal (e.g. "Threshold", "Sync interval"), with the full explanation moved to `data_description`, shown as a separate block before the field - the same pattern already used for `keepalive_frame_type`
 
 ### v0.3.4 (In Development)
 - **Objective:** Configurable time sync and fault log refresh intervals, plus a smarter, dual-trigger keep-alive
