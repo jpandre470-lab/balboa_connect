@@ -63,6 +63,19 @@ from homeassistant.const import (
 )
 from homeassistant.core import callback
 
+# Presentation-only fields (ha-form "constant" selector): a bold label with
+# no input, used to show a detailed description ABOVE a following
+# NumberSelector field. ha-selector-number's own helper text always renders
+# BELOW the box (hardcoded in the frontend component), so this is the only
+# way to get "paragraph, then compact field" layout for numeric options -
+# the same layout keepalive_frame_type gets "for free" as a radio list.
+_NOTE_SYNC_TIME_INTERVAL = "sync_time_interval_note"
+_NOTE_KEEPALIVE_MISSED_UPDATES_THRESHOLD = "keepalive_missed_updates_threshold_note"
+_NOTE_FAULT_LOG_REFRESH_INTERVAL = "fault_log_refresh_interval_note"
+_NOTE_LED_DELAY_ON = "led_delay_on_note"
+_NOTE_LED_DELAY_OFF = "led_delay_off_note"
+_NOTE_LED_DELAY_RESET = "led_delay_reset_note"
+
 
 DATA_SCHEMA = vol.Schema(
     {
@@ -141,6 +154,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_SYNC_TIME,
                     default=self.config_entry.options.get(CONF_SYNC_TIME, False),
                 ): bool,
+                vol.Optional(_NOTE_SYNC_TIME_INTERVAL, default=""): selector.ConstantSelector(
+                    selector.ConstantSelectorConfig(value="")
+                ),
                 vol.Optional(
                     CONF_SYNC_TIME_INTERVAL,
                     default=self.config_entry.options.get(
@@ -178,6 +194,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_KEEPALIVE_MISSED_UPDATES_ENABLED, DEFAULT_KEEPALIVE_MISSED_UPDATES_ENABLED
                     ),
                 ): bool,
+                vol.Optional(_NOTE_KEEPALIVE_MISSED_UPDATES_THRESHOLD, default=""): selector.ConstantSelector(
+                    selector.ConstantSelectorConfig(value="")
+                ),
                 vol.Optional(
                     CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
                     default=self.config_entry.options.get(
@@ -198,6 +217,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): vol.All(
                     cv.positive_int,
                     vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT),
+                ),
+                vol.Optional(_NOTE_FAULT_LOG_REFRESH_INTERVAL, default=""): selector.ConstantSelector(
+                    selector.ConstantSelectorConfig(value="")
                 ),
                 vol.Optional(
                     CONF_FAULT_LOG_REFRESH_INTERVAL,
@@ -274,6 +296,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
+                vol.Optional(_NOTE_LED_DELAY_ON, default=""): selector.ConstantSelector(
+                    selector.ConstantSelectorConfig(value="")
+                ),
                 vol.Optional(
                     CONF_LED_DELAY_ON,
                     default=opts.get(CONF_LED_DELAY_ON, DEFAULT_LED_DELAY_ON),
@@ -282,6 +307,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS, mode=selector.NumberSelectorMode.BOX
                     )
                 ),
+                vol.Optional(_NOTE_LED_DELAY_OFF, default=""): selector.ConstantSelector(
+                    selector.ConstantSelectorConfig(value="")
+                ),
                 vol.Optional(
                     CONF_LED_DELAY_OFF,
                     default=opts.get(CONF_LED_DELAY_OFF, DEFAULT_LED_DELAY_OFF),
@@ -289,6 +317,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     selector.NumberSelectorConfig(
                         min=MIN_LED_DELAY_MS, max=MAX_LED_DELAY_MS, mode=selector.NumberSelectorMode.BOX
                     )
+                ),
+                vol.Optional(_NOTE_LED_DELAY_RESET, default=""): selector.ConstantSelector(
+                    selector.ConstantSelectorConfig(value="")
                 ),
                 vol.Optional(
                     CONF_LED_DELAY_RESET,

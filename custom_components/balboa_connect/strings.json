@@ -24,34 +24,30 @@
             "init": {
                 "data": {
                     "sync_time": "Keep your Balboa BP controller's time synchronized with Home Assistant",
+                    "sync_time_interval_note": "How often to sync the spa's clock with Home Assistant, in hours (1-24)",
                     "sync_time_interval": "Sync interval",
                     "keepalive_enabled": "Enable periodic keep-alive (usually not needed, the spa already pushes status updates on its own)",
                     "keepalive_interval": "Keep-alive interval (seconds)",
                     "keepalive_frame_type": "Keep-alive frame type: \"existing_client_request\" (default, gets a real reply from the WiFi module) or \"minimal\" (silent frame, no reply)",
                     "keepalive_missed_updates_enabled": "Also send a keep-alive if the spa's spontaneous updates (usually every ~300ms) stop arriving",
+                    "keepalive_missed_updates_threshold_note": "Number of missed spontaneous spa updates (~300ms each, 1-200) before sending a keep-alive - 200 is about 1 minute of silence",
                     "keepalive_missed_updates_threshold": "Threshold",
                     "socket_timeout": "Socket timeout (seconds)",
+                    "fault_log_refresh_interval_note": "How often to re-request the fault log while the connection stays up, in hours (1-24)",
                     "fault_log_refresh_interval": "Refresh interval",
                     "light_mode": "Light control mode"
-                },
-                "data_description": {
-                    "sync_time_interval": "How often to sync the spa's clock with Home Assistant, in hours (1-24)",
-                    "keepalive_missed_updates_threshold": "Number of missed spontaneous spa updates (~300ms each, 1-200) before sending a keep-alive - 200 is about 1 minute of silence",
-                    "fault_log_refresh_interval": "How often to re-request the fault log while the connection stays up, in hours (1-24)"
                 }
             },
             "led_palette": {
                 "description": "Current palette:\n{palette}",
                 "data": {
+                    "led_delay_on_note": "How long the light stays on during a color cycle pulse",
                     "led_delay_on": "On delay (ms)",
+                    "led_delay_off_note": "How long the light stays off during a color cycle pulse",
                     "led_delay_off": "Off delay (ms)",
+                    "led_delay_reset_note": "How long to wait before the color cycle resets back to the first color",
                     "led_delay_reset": "Reset delay (seconds)",
                     "action": "Action"
-                },
-                "data_description": {
-                    "led_delay_on": "How long the light stays on during a color cycle pulse",
-                    "led_delay_off": "How long the light stays off during a color cycle pulse",
-                    "led_delay_reset": "How long to wait before the color cycle resets back to the first color"
                 }
             },
             "led_edit": {

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] - v0.3.6 (In Development)
+
+**Objective:** Fix a self-inflicted reconnect loop found by analyzing real logs, plus reduce spurious keep-alive-triggered reconnects.
+
+### Fixed
+- Race condition introduced by the 2-worker executor (0.3.5): `_close_socket()` closed/cleared `self.socket_s` unconditionally, regardless of which socket object it actually referred to. If a `recv()` call had been blocked for a long time on an old, already-superseded socket (up to `socket_timeout`), and a *different*, concurrent reconnect attempt succeeded in the meantime, the stale `recv()` finally erroring out would tear down the brand-new connection immediately after it was established (visible in logs as "Reconnected to spa..." instantly followed by "Cannot send message, socket is None"), causing a self-sustaining reconnect loop lasting minutes. `_close_socket()` now accepts an optional `expected_socket` and only actually closes if `self.socket_s` is still that exact object; `read_msg_async()` (the one call site exposed to this race, due to its potentially long-blocking `recv()`) now captures the socket reference before the blocking call and passes it through.
+- Spurious keep-alive-triggered reconnects: a keep-alive was only considered acknowledged if the WiFi module specifically replied to the `existing_client_request` frame within the verification window (`_wait_for_keepalive_response`). Confirmed from real logs that the module can be slow/inconsistent about answering this specific query - especially under frequent querying (low `keepalive_missed_updates_threshold`) - while continuing to send its normal spontaneous status broadcasts completely normally. Any new data received after sending the keep-alive now also counts as proof of life, not just the specific reply.
+- Description text rendering below (instead of above) every `NumberSelector` field (`sync_time_interval`, `keepalive_missed_updates_threshold`, `fault_log_refresh_interval`, and the 3 LED delay fields). Root cause: HA Core's `ha-selector-number` frontend component hardcodes its helper text to render as a hint below the field in "box" mode - not something overridable from `strings.json`/`data_description`. Worked around with a `ConstantSelector` "note" field (bold, read-only, no input) inserted immediately before each `NumberSelector`, replicating the "paragraph, then compact field" layout `keepalive_frame_type` already gets for free as a radio list.
+
 ## [Unreleased] - v0.3.5 (In Development)
 
 **Objective:** Fix a head-of-line blocking bug found while testing 0.3.4's new keep-alive triggers, which made every proactive keep-alive/watchdog mechanism ineffective.
