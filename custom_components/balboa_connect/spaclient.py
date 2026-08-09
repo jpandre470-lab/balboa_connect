@@ -25,6 +25,11 @@ from threading import Lock
 REQUEST_TIMEOUT = 30  # Maximum time to wait for a response
 RECONNECT_DELAY = 5
 
+# Sentinel to distinguish "expected_socket not passed" (always close,
+# default behavior) from "expected_socket=None" (only close if the socket
+# is already None) in _close_socket().
+_UNSET = object()
+
 
 # --- Frame name / decode maps used for debug logging only (see spa protocol docs in the parse_* methods below) ---
 
@@ -535,8 +540,27 @@ class spaclient:
 
         return self.socket_is_connected
     
-    async def _close_socket(self):
-        """Safely close the socket."""
+    async def _close_socket(self, expected_socket=_UNSET):
+        """Safely close the socket.
+
+        If expected_socket is given (even as None), only actually close and
+        clear self.socket_s if it's still that exact object. This guards
+        against a stale, superseded connection attempt's error handling
+        (e.g. a recv() that was blocked for a long time on an old socket)
+        clobbering a socket that has since been freshly reconnected by
+        another concurrent task - see read_msg_async(), which is the one
+        call site exposed to this race (its blocking recv() can run for up
+        to socket_timeout while a separate reconnect happens concurrently:
+        keep_alive_call() and read_all_msg() both independently call
+        _reconnect_and_reinit() as backup/primary reconnect paths, and with
+        the 2-worker executor introduced in 0.3.5, they can now genuinely
+        run at the same time).
+        """
+        if expected_socket is not _UNSET and self.socket_s is not expected_socket:
+            _LOGGER.debug(
+                "Ignoring stale socket close request (superseded by a newer connection already)"
+            )
+            return
         self._flush_rx_log()
         if self.socket_s:
             try:
@@ -561,16 +585,27 @@ class spaclient:
             await self.send_fault_log_request()
         return connected
 
-    async def _wait_for_keepalive_response(self, previous_value, timeout=10):
-        """Wait until a fresh Module Identification Response (0x94) is received.
+    async def _wait_for_keepalive_response(self, sent_at, previous_value, timeout=10):
+        """Wait for evidence the connection is still alive after sending a keep-alive.
 
-        Used to confirm the WiFi module actually replied to an
-        existing_client_request keep-alive, instead of assuming the
-        connection is alive just because the TCP write succeeded.
+        Two independent signals both count as proof of life:
+        - The specific existing_client_request reply (Module Identification
+          Response, 0x94) arrives.
+        - ANY new data arrives at all after the keep-alive was sent. The
+          spa's normal spontaneous status broadcasts resuming is just as
+          valid a proof of life - the WiFi module can be slow or
+          inconsistent about answering identification queries specifically
+          (especially if queried very frequently, e.g. with a low
+          keepalive_missed_updates_threshold) while remaining fully
+          responsive on its normal broadcast channel. Requiring only the
+          specific reply caused spurious reconnects even while the spa was
+          demonstrably still talking to us.
         """
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self._last_keepalive_response_time != previous_value:
+                return True
+            if self._last_rx_time is not None and self._last_rx_time > sent_at:
                 return True
             await asyncio.sleep(0.5)
         return False
@@ -638,16 +673,18 @@ class spaclient:
 
                     if periodic_due or missed_updates_due:
                         before = self._last_keepalive_response_time
+                        sent_at = time.monotonic()
                         await self.send_keepalive()
                         if self.keepalive_frame_type == KEEPALIVE_FRAME_EXISTING_CLIENT:
                             confirmed = await self._wait_for_keepalive_response(
-                                before, timeout=min(10, self.keepalive_interval)
+                                sent_at, before, timeout=min(10, self.keepalive_interval)
                             )
                             if not confirmed:
                                 trigger = "periodic" if periodic_due else "missed updates"
                                 _LOGGER.warning(
                                     "Keep-alive (%s trigger): no reply from the WiFi module to the "
-                                    "existing_client_request frame, forcing a reconnect",
+                                    "existing_client_request frame, and no other data received either, "
+                                    "forcing a reconnect",
                                     trigger,
                                 )
                                 await self._close_socket()
@@ -715,8 +752,13 @@ class spaclient:
         """Async wrapper for message reading - doesn't block event loop."""
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
-            
-        if self.socket_s is None:
+
+        # Captured before the (potentially long) blocking call below, so
+        # that if a concurrent reconnect replaces self.socket_s while this
+        # read is still in flight, we can tell our result is stale and
+        # avoid tearing down the new connection - see _close_socket().
+        current_socket = self.socket_s
+        if current_socket is None:
             return False
             
         self.socket_l.acquire()
@@ -729,9 +771,12 @@ class spaclient:
             self.socket_l.release()
         
         if chunk is None:
-            # Connection error occurred
-            self.socket_is_connected = False
-            await self._close_socket()
+            # Connection error occurred (or this read was for a socket that
+            # has since been superseded by a newer connection - in that
+            # case _close_socket() below is a no-op).
+            if self.socket_s is current_socket:
+                self.socket_is_connected = False
+            await self._close_socket(expected_socket=current_socket)
             return False
             
         if chunk == b'':
