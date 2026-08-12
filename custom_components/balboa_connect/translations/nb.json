@@ -24,16 +24,13 @@
             "init": {
                 "data": {
                     "sync_time": "Hold Balboa BP kontrollerens tid synkronisert med Home Assistant",
-                    "sync_time_interval_note": "Hvor ofte badekarets klokke skal synkroniseres med Home Assistant, i timer (1-24)",
                     "sync_time_interval": "Synkroniseringsintervall",
                     "keepalive_enabled": "Aktiver periodisk keep-alive (vanligvis un\u00f8dvendig, badekaret sender allerede status p\u00e5 eget initiativ)",
                     "keepalive_interval": "Keep-alive-intervall (sekunder)",
                     "keepalive_frame_type": "Keep-alive-rammetype: \"existing_client_request\" (standard, f\u00e5r et reelt svar fra WiFi-modulen) eller \"minimal\" (stille ramme, uten svar)",
                     "keepalive_missed_updates_enabled": "Send ogs\u00e5 en keep-alive hvis badekarets spontane oppdateringer (vanligvis hvert ~300ms) slutter \u00e5 komme",
-                    "keepalive_missed_updates_threshold_note": "Antall uteblitte spontane badekaroppdateringer (~300ms hver, 1-200) f\u00f8r en keep-alive sendes - 200 er ca. 1 minutt med stillhet",
                     "keepalive_missed_updates_threshold": "Terskel",
                     "socket_timeout": "Socket-tidsavbrudd (sekunder)",
-                    "fault_log_refresh_interval_note": "Hvor ofte feilloggen skal ettersp\u00f8rres p\u00e5 nytt mens tilkoblingen er oppe, i timer (1-24)",
                     "fault_log_refresh_interval": "Oppdateringsintervall",
                     "light_mode": "Lysstyringsmodus"
                 }
@@ -41,11 +38,8 @@
             "led_palette": {
                 "description": "N\u00e5v\u00e6rende palett:\n{palette}",
                 "data": {
-                    "led_delay_on_note": "Hvor lenge lyset er p\u00e5 under en fargesyklus-puls",
                     "led_delay_on": "P\u00e5-forsinkelse (ms)",
-                    "led_delay_off_note": "Hvor lenge lyset er av under en fargesyklus-puls",
                     "led_delay_off": "Av-forsinkelse (ms)",
-                    "led_delay_reset_note": "Hvor lenge man venter f\u00f8r fargesyklusen tilbakestilles til den f\u00f8rste fargen",
                     "led_delay_reset": "Tilbakestillingsforsinkelse (sekunder)",
                     "action": "Handling"
                 }
