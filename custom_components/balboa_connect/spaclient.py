@@ -490,28 +490,38 @@ class spaclient:
             return True
             
         try:
-            self.socket_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket_s.settimeout(self.socket_timeout)
-            self.socket_s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            
+            # Create new socket in local variable first
+            new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            new_socket.settimeout(self.socket_timeout)
+            new_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
             # Run connect in executor to not block event loop
             await self._loop.run_in_executor(
                 self._executor,
-                lambda: self.socket_s.connect((self.socket_host_ip, 4257))
+                lambda: new_socket.connect((self.socket_host_ip, 4257))
             )
+            
+            # Atomic assignment: capture old socket before replacing
+            old_socket = self.socket_s
+            self.socket_s = new_socket
+            self.socket_is_connected = True
+            
+            # Close old socket if it exists and is different
+            if old_socket is not None and old_socket is not new_socket:
+                await self._close_socket(expected_socket=old_socket)
+            
             _LOGGER.debug("Socket connected to %s:4257", self.socket_host_ip)
             return True
         except (socket.timeout, socket.error, OSError) as e:
             _LOGGER.warning("Socket connection error: %s", e)
             self.socket_is_connected = False
-            if self.socket_s:
+            if 'new_socket' in locals():
                 try:
-                    self.socket_s.close()
+                    new_socket.close()
                 except Exception:
                     pass
-            self.socket_s = None
             return False
-
+    
     async def validate_connection(self):
         """Validate connection with timeout protection."""
         if self._loop is None:
@@ -572,20 +582,23 @@ class spaclient:
         # Reset liveness tracking so the watchdog doesn't immediately judge
         # the next connection stale based on timestamps from before this
         # reconnect.
-        self._last_rx_time = None
-        self._last_keepalive_response_time = None
+        
+        # NE PAS réinitialiser les timestamps ici - ils doivent persister
+        # pour que le watchdog puisse détecter les reconnexions rapides
+        # self._last_rx_time = None
+        # self._last_keepalive_response_time = None
 
     async def _reconnect_and_reinit(self):
         """Reconnect socket and send a keep-alive ping to resume spa comms."""
         connected = await self.get_socket()
         if connected:
             _LOGGER.info("Reconnected to spa at %s", self.socket_host_ip)
-            # Sending fault log request acts as a keep-alive ping;
+            # Sending a keep-alive ping;
             # the spa will resume sending status updates on its own.
-            await self.send_fault_log_request()
+            await self.send_keepalive()
         return connected
 
-    async def _wait_for_keepalive_response(self, sent_at, previous_value, timeout=10):
+    async def _wait_for_keepalive_response(self, sent_at, previous_value, timeout=20):
         """Wait for evidence the connection is still alive after sending a keep-alive.
 
         Two independent signals both count as proof of life:
@@ -605,7 +618,7 @@ class spaclient:
         while time.monotonic() < deadline:
             if self._last_keepalive_response_time != previous_value:
                 return True
-            if self._last_rx_time is not None and self._last_rx_time > sent_at:
+            if self._last_rx_time is not None and self._last_rx_time > (sent_at - 0.1):
                 return True
             await asyncio.sleep(0.5)
         return False
@@ -677,7 +690,7 @@ class spaclient:
                         await self.send_keepalive()
                         if self.keepalive_frame_type == KEEPALIVE_FRAME_EXISTING_CLIENT:
                             confirmed = await self._wait_for_keepalive_response(
-                                sent_at, before, timeout=min(10, self.keepalive_interval)
+                                sent_at, before, timeout=min(20, self.keepalive_interval)
                             )
                             if not confirmed:
                                 trigger = "periodic" if periodic_due else "missed updates"
@@ -926,8 +939,10 @@ class spaclient:
         # type - this is the liveness timer used by the idle watchdog in
         # keep_alive_call(), independent of the low-level socket recv()
         # timeout.
-        self._last_rx_time = time.monotonic()
-
+        
+        now = time.monotonic()
+        self._last_rx_time = now
+        
         self._log_rx_frame(chunk)
             
         if chunk != self.status_chunk_array:
@@ -1001,7 +1016,9 @@ class spaclient:
                 # This response is also the proof-of-life for the
                 # existing_client_request keep-alive frame - record it every
                 # time, not just on first load (see keep_alive_call()).
-                self._last_keepalive_response_time = time.monotonic()
+                
+                self._last_keepalive_response_time = now
+                
                 if not self.module_identification_loaded:
                     try:
                         self.parse_module_identification_response(chunk[3:])
@@ -1799,15 +1816,18 @@ class spaclient:
                 pass
             self.socket_s = None
             return False
-    
+        
     async def _send_message_async(self, type, payload):
         """Send a message to the spa (async - preferred method)."""
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
-            
+        
         if self.socket_s is None:
-            _LOGGER.warning("Cannot send message, socket is None")
-            return False
+            _LOGGER.debug("Socket is None, attempting reconnect")
+            connected = await self.get_socket()
+            if not connected or self.socket_s is None:
+                _LOGGER.warning("Cannot send message, socket is None or not connected after reconnect attempt")
+                return False
             
         try:
             result = await self._loop.run_in_executor(
