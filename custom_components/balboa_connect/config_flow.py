@@ -69,12 +69,72 @@ from homeassistant.core import callback
 # BELOW the box (hardcoded in the frontend component), so this is the only
 # way to get "paragraph, then compact field" layout for numeric options -
 # the same layout keepalive_frame_type gets "for free" as a radio list.
+#
+# IMPORTANT: ha-selector-constant.ts does NOT read its text from the normal
+# strings.json "data" translation path used by every other field - it reads
+# a "label" set directly in the selector's own config (or a translation_key
+# resolved through a separate selector-translation mechanism). To keep
+# these notes translated without relying on that separate, harder-to-verify
+# mechanism, the text is picked here directly based on hass.config.language.
 _NOTE_SYNC_TIME_INTERVAL = "sync_time_interval_note"
 _NOTE_KEEPALIVE_MISSED_UPDATES_THRESHOLD = "keepalive_missed_updates_threshold_note"
 _NOTE_FAULT_LOG_REFRESH_INTERVAL = "fault_log_refresh_interval_note"
 _NOTE_LED_DELAY_ON = "led_delay_on_note"
 _NOTE_LED_DELAY_OFF = "led_delay_off_note"
 _NOTE_LED_DELAY_RESET = "led_delay_reset_note"
+
+_NOTES_TEXT = {
+    "en": {
+        _NOTE_SYNC_TIME_INTERVAL: "How often to sync the spa's clock with Home Assistant, in hours (1-24)",
+        _NOTE_KEEPALIVE_MISSED_UPDATES_THRESHOLD: (
+            "Number of missed spontaneous spa updates (~300ms each, 1-200) before sending "
+            "a keep-alive - 200 is about 1 minute of silence"
+        ),
+        _NOTE_FAULT_LOG_REFRESH_INTERVAL: (
+            "How often to re-request the fault log while the connection stays up, in hours (1-24)"
+        ),
+        _NOTE_LED_DELAY_ON: "How long the light stays on during a color cycle pulse",
+        _NOTE_LED_DELAY_OFF: "How long the light stays off during a color cycle pulse",
+        _NOTE_LED_DELAY_RESET: "How long to wait before the color cycle resets back to the first color",
+    },
+    "fr": {
+        _NOTE_SYNC_TIME_INTERVAL: (
+            "Fr\u00e9quence de synchronisation de l'heure du spa avec Home Assistant, en heures (1-24)"
+        ),
+        _NOTE_KEEPALIVE_MISSED_UPDATES_THRESHOLD: (
+            "Nombre de mises \u00e0 jour spontan\u00e9es manqu\u00e9es (~300ms chacune, 1-200) avant l'envoi "
+            "d'un keep-alive - 200 \u00e9quivaut \u00e0 environ 1 minute de silence"
+        ),
+        _NOTE_FAULT_LOG_REFRESH_INTERVAL: (
+            "Fr\u00e9quence de re-demande du journal des d\u00e9fauts tant que la connexion reste active, "
+            "en heures (1-24)"
+        ),
+        _NOTE_LED_DELAY_ON: "Dur\u00e9e pendant laquelle la lumi\u00e8re reste allum\u00e9e lors d'une impulsion du cycle de couleur",
+        _NOTE_LED_DELAY_OFF: "Dur\u00e9e pendant laquelle la lumi\u00e8re reste \u00e9teinte lors d'une impulsion du cycle de couleur",
+        _NOTE_LED_DELAY_RESET: "Dur\u00e9e d'attente avant que le cycle de couleur ne revienne \u00e0 la premi\u00e8re couleur",
+    },
+    "nb": {
+        _NOTE_SYNC_TIME_INTERVAL: "Hvor ofte badekarets klokke skal synkroniseres med Home Assistant, i timer (1-24)",
+        _NOTE_KEEPALIVE_MISSED_UPDATES_THRESHOLD: (
+            "Antall uteblitte spontane badekaroppdateringer (~300ms hver, 1-200) f\u00f8r en keep-alive "
+            "sendes - 200 er ca. 1 minutt med stillhet"
+        ),
+        _NOTE_FAULT_LOG_REFRESH_INTERVAL: (
+            "Hvor ofte feilloggen skal etterspørres p\u00e5 nytt mens tilkoblingen er oppe, i timer (1-24)"
+        ),
+        _NOTE_LED_DELAY_ON: "Hvor lenge lyset er p\u00e5 under en fargesyklus-puls",
+        _NOTE_LED_DELAY_OFF: "Hvor lenge lyset er av under en fargesyklus-puls",
+        _NOTE_LED_DELAY_RESET: "Hvor lenge man venter f\u00f8r fargesyklusen tilbakestilles til den f\u00f8rste fargen",
+    },
+}
+
+
+def _note_text(hass, key):
+    """Pick the note text for the given key based on hass.config.language,
+    falling back to English for any language we haven't translated."""
+    language = getattr(hass.config, "language", "en") if hass else "en"
+    texts = _NOTES_TEXT.get(language, _NOTES_TEXT["en"])
+    return texts.get(key, _NOTES_TEXT["en"].get(key, ""))
 
 
 DATA_SCHEMA = vol.Schema(
@@ -155,7 +215,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=self.config_entry.options.get(CONF_SYNC_TIME, False),
                 ): bool,
                 vol.Optional(_NOTE_SYNC_TIME_INTERVAL, default=""): selector.ConstantSelector(
-                    selector.ConstantSelectorConfig(value="")
+                    selector.ConstantSelectorConfig(value="", label=_note_text(self.hass, _NOTE_SYNC_TIME_INTERVAL))
                 ),
                 vol.Optional(
                     CONF_SYNC_TIME_INTERVAL,
@@ -195,7 +255,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ): bool,
                 vol.Optional(_NOTE_KEEPALIVE_MISSED_UPDATES_THRESHOLD, default=""): selector.ConstantSelector(
-                    selector.ConstantSelectorConfig(value="")
+                    selector.ConstantSelectorConfig(
+                        value="", label=_note_text(self.hass, _NOTE_KEEPALIVE_MISSED_UPDATES_THRESHOLD)
+                    )
                 ),
                 vol.Optional(
                     CONF_KEEPALIVE_MISSED_UPDATES_THRESHOLD,
@@ -219,7 +281,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Clamp(min=MIN_SOCKET_TIMEOUT, max=MAX_SOCKET_TIMEOUT),
                 ),
                 vol.Optional(_NOTE_FAULT_LOG_REFRESH_INTERVAL, default=""): selector.ConstantSelector(
-                    selector.ConstantSelectorConfig(value="")
+                    selector.ConstantSelectorConfig(
+                        value="", label=_note_text(self.hass, _NOTE_FAULT_LOG_REFRESH_INTERVAL)
+                    )
                 ),
                 vol.Optional(
                     CONF_FAULT_LOG_REFRESH_INTERVAL,
@@ -297,7 +361,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         data_schema = vol.Schema(
             {
                 vol.Optional(_NOTE_LED_DELAY_ON, default=""): selector.ConstantSelector(
-                    selector.ConstantSelectorConfig(value="")
+                    selector.ConstantSelectorConfig(value="", label=_note_text(self.hass, _NOTE_LED_DELAY_ON))
                 ),
                 vol.Optional(
                     CONF_LED_DELAY_ON,
@@ -308,7 +372,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     )
                 ),
                 vol.Optional(_NOTE_LED_DELAY_OFF, default=""): selector.ConstantSelector(
-                    selector.ConstantSelectorConfig(value="")
+                    selector.ConstantSelectorConfig(value="", label=_note_text(self.hass, _NOTE_LED_DELAY_OFF))
                 ),
                 vol.Optional(
                     CONF_LED_DELAY_OFF,
@@ -319,7 +383,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     )
                 ),
                 vol.Optional(_NOTE_LED_DELAY_RESET, default=""): selector.ConstantSelector(
-                    selector.ConstantSelectorConfig(value="")
+                    selector.ConstantSelectorConfig(value="", label=_note_text(self.hass, _NOTE_LED_DELAY_RESET))
                 ),
                 vol.Optional(
                     CONF_LED_DELAY_RESET,
