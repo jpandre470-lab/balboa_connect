@@ -323,6 +323,11 @@ class spaclient:
         """ Socket variables """
         self.socket_is_connected = False
         self.socket_l = Lock()
+        # Guards get_socket() so at most one connection attempt runs at a
+        # time, even if multiple concurrent callers (keep_alive_call()'s
+        # backup path and read_all_msg()'s primary path) both notice
+        # self.socket_s is None around the same time.
+        self._connect_lock = asyncio.Lock()
         self.socket_s = None
         self.socket_host_ip = host_ip
         
@@ -482,35 +487,52 @@ class spaclient:
         self.gfci_test_loaded = False
 
     async def get_socket(self):
-        """Create and connect socket with proper error handling."""
+        """Create and connect socket with proper error handling.
+
+        Serialized by self._connect_lock, and self.socket_s is only ever
+        assigned AFTER connect() actually succeeds - not before, as this
+        used to do. Assigning it beforehand made a not-yet-connected (or
+        about to fail) socket visible to any other concurrent caller
+        checking "self.socket_s is not None", which would then wrongly
+        treat the connection as already established. If this attempt then
+        failed and cleared self.socket_s back to None, that other caller -
+        already past its own check - would find it None when it finally
+        tried to send, logging "Reconnected to spa" immediately followed by
+        "Cannot send message, socket is None". Confirmed from real logs.
+        """
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
-            
+
         if self.socket_s is not None:
             return True
-            
-        try:
-            self.socket_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket_s.settimeout(self.socket_timeout)
-            self.socket_s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            
-            # Run connect in executor to not block event loop
-            await self._loop.run_in_executor(
-                self._executor,
-                lambda: self.socket_s.connect((self.socket_host_ip, 4257))
-            )
-            _LOGGER.debug("Socket connected to %s:4257", self.socket_host_ip)
-            return True
-        except (socket.timeout, socket.error, OSError) as e:
-            _LOGGER.warning("Socket connection error: %s", e)
-            self.socket_is_connected = False
-            if self.socket_s:
+
+        async with self._connect_lock:
+            # Re-check now that we hold the lock: another caller may have
+            # already connected while we were waiting for it.
+            if self.socket_s is not None:
+                return True
+
+            new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                new_socket.settimeout(self.socket_timeout)
+                new_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+                # Run connect in executor to not block event loop
+                await self._loop.run_in_executor(
+                    self._executor,
+                    lambda: new_socket.connect((self.socket_host_ip, 4257))
+                )
+                self.socket_s = new_socket
+                _LOGGER.debug("Socket connected to %s:4257", self.socket_host_ip)
+                return True
+            except (socket.timeout, socket.error, OSError) as e:
+                _LOGGER.warning("Socket connection error: %s", e)
+                self.socket_is_connected = False
                 try:
-                    self.socket_s.close()
+                    new_socket.close()
                 except Exception:
                     pass
-            self.socket_s = None
-            return False
+                return False
 
     async def validate_connection(self):
         """Validate connection with timeout protection."""

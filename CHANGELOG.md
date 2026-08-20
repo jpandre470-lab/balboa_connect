@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] - v0.3.7 (In Development)
+
+**Objective:** Fix a second, deeper source of "Cannot send message, socket is None" found by analyzing fresh logs from 0.3.6 - the 0.3.6 fix (stale-socket close guard) was confirmed working, but the "Reconnected... / Cannot send..." pattern still occurred, from a different cause.
+
+### Fixed
+- TOCTOU race in `get_socket()`: `self.socket_s` used to be assigned as soon as the socket object was created, before the actual TCP `connect()` had succeeded or failed. If two reconnect attempts happened concurrently (`keep_alive_call()`'s backup path and `read_all_msg()`'s primary path can both run concurrently since the 2-worker executor in 0.3.5), the second one would see `self.socket_s is not None` and wrongly treat the connection as already established while it was actually still connecting or about to fail. If the first attempt then failed and cleared `self.socket_s` back to `None`, the second caller - already past its check - found it `None` when it tried to send, producing exactly the observed "Reconnected to spa" instantly followed by "Cannot send message, socket is None". `self.socket_s` is now only assigned after `connect()` actually succeeds, and a new `asyncio.Lock` (`_connect_lock`) ensures at most one connection attempt runs at a time.
+
 ## [Unreleased] - v0.3.6 (In Development)
 
 **Objective:** Fix a self-inflicted reconnect loop found by analyzing real logs, plus reduce spurious keep-alive-triggered reconnects.
